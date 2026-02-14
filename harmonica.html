@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harmonica Pitch Detector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        #startBtn {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #startBtn:hover {
+            background: #45a049;
+        }
+
+        #startBtn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .pitch-info {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .detected-note {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .frequency {
+            font-size: 24px;
+            color: #feca57;
+        }
+
+        .pitch-deviation {
+            margin-top: 15px;
+        }
+
+        .deviation-bar {
+            width: 100%;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .deviation-indicator {
+            position: absolute;
+            width: 4px;
+            height: 100%;
+            background: #ff6b6b;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: left 0.1s;
+        }
+
+        .deviation-center {
+            position: absolute;
+            width: 2px;
+            height: 100%;
+            background: white;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .deviation-text {
+            margin-top: 5px;
+            font-size: 18px;
+        }
+
+        .harmonica {
+            background: linear-gradient(to bottom, #c0c0c0, #808080);
+            border-radius: 10px;
+            padding: 30px 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: inline-block;
+        }
+
+        .holes-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .hole {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0px;
+        }
+
+        .note-group {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            align-items: center;
+        }
+
+        .note {
+            width: 60px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(145deg, #e6e6e6, #cccccc);
+            border: 2px solid #999;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 20px;
+            color: #333;
+            transition: all 0.15s;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .note.main {
+            width: 60px;
+            height: 50px;
+            font-size: 16px;
+        }
+
+        .note.bend {
+            width: 50px;
+            height: 35px;
+            font-size: 12px;
+            opacity: 0.85;
+        }
+
+        .note-spacer {
+            width: 50px;
+            height: 35px;
+            visibility: hidden;
+        }
+
+        .note .deviation-display {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            display: none;
+            transition: top 0.1s;
+            box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+        }
+
+        .note.active .deviation-display {
+            display: block;
+        }
+
+        .note .deviation-indicator {
+            display: none;
+        }
+
+        .note.active {
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+            transform: scale(1.15);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+            border-color: #2d7a2f;
+        }
+
+        .note.blow {
+            background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+        }
+
+        .note.blow.active {
+            background: linear-gradient(145deg, #2196F3, #1976D2);
+        }
+
+        .note.draw {
+            background: linear-gradient(145deg, #fff3e0, #ffe0b2);
+        }
+
+        .note.draw.active {
+            background: linear-gradient(145deg, #FF9800, #F57C00);
+        }
+
+        /* Scale degree colors - applied when intervals are shown */
+        .note.degree-1 {
+            background: linear-gradient(145deg, #ff6b6b, #ee5a5a) !important;
+            color: white !important;
+        }
+
+        /* Root - Red */
+        .note.degree-2 {
+            background: linear-gradient(145deg, #ffa502, #ff8c00) !important;
+            color: white !important;
+        }
+
+        /* 2nd - Orange */
+        .note.degree-b2 {
+            background: linear-gradient(145deg, #ff7f50, #ff6347) !important;
+            color: white !important;
+        }
+
+        /* ♭2 - Coral */
+        .note.degree-3 {
+            background: linear-gradient(145deg, #ffdd59, #ffd32a) !important;
+            color: #333 !important;
+        }
+
+        /* 3rd - Yellow */
+        .note.degree-b3 {
+            background: linear-gradient(145deg, #f9ca24, #f0b90b) !important;
+            color: #333 !important;
+        }
+
+        /* ♭3 - Dark Yellow */
+        .note.degree-4 {
+            background: linear-gradient(145deg, #1dd1a1, #10ac84) !important;
+            color: white !important;
+        }
+
+        /* 4th - Green */
+        .note.degree-s4 {
+            background: linear-gradient(145deg, #0fb9b1, #009688) !important;
+            color: white !important;
+        }
+
+        /* ♯4 - Teal */
+        .note.degree-b5 {
+            background: linear-gradient(145deg, #00d2d3, #01a3a4) !important;
+            color: white !important;
+        }
+
+        /* ♭5 - Cyan */
+        .note.degree-5 {
+            background: linear-gradient(145deg, #5f27cd, #4d1fb8) !important;
+            color: white !important;
+        }
+
+        /* 5th - Purple */
+        .note.degree-6 {
+            background: linear-gradient(145deg, #48dbfb, #0abde3) !important;
+            color: white !important;
+        }
+
+        /* 6th - Light Blue */
+        .note.degree-b6 {
+            background: linear-gradient(145deg, #3867d6, #2f5bb7) !important;
+            color: white !important;
+        }
+
+        /* ♭6 - Blue */
+        .note.degree-7 {
+            background: linear-gradient(145deg, #ff9ff3, #f368e0) !important;
+            color: white !important;
+        }
+
+        /* 7th - Pink */
+        .note.degree-b7 {
+            background: linear-gradient(145deg, #ee5a6f, #c44569) !important;
+            color: white !important;
+        }
+
+        /* ♭7 - Dark Pink */
+        .note.degree-s5 {
+            background: linear-gradient(145deg, #a29bfe, #6c5ce7) !important;
+            color: white !important;
+        }
+
+        /* ♯5 - Lavender */
+        .note.degree-s6 {
+            background: linear-gradient(145deg, #fd79a8, #e84393) !important;
+            color: white !important;
+        }
+
+        /* ♯6 - Magenta */
+        .note.out-of-scale {
+            opacity: 0.4 !important;
+        }
+
+        /* Notes not in scale - dimmed */
+
+        .hole-number {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-top: 3px;
+        }
+
+        .label {
+            font-size: 11px;
+            color: #555;
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #feca57;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Diatonic Harmonica Pitch Detector</h1>
+
+        <div class="controls">
+            <button id="startBtn">Start Microphone</button>
+        </div>
+        <div class="controls">
+            <label style="margin-left: 20px; font-size: 16px; cursor: pointer;">
+                <input type="checkbox" id="intervalToggle" style="cursor: pointer; margin-right: 8px;">
+                Show Intervals
+            </label>
+            <label style="margin-left: 20px; font-size: 16px;">
+                Key:
+                <select id="keySelect"
+                    style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
+                    <option value="LF">Low F</option>
+                    <option value="LD">Low D</option>
+                    <option value="C" selected>C</option>
+                    <option value="Db">D♭/C♯</option>
+                    <option value="D">D</option>
+                    <option value="Eb">E♭/D♯</option>
+                    <option value="E">E</option>
+                    <option value="F">F</option>
+                    <option value="Gb">G♭/F♯</option>
+                    <option value="G">G</option>
+                    <option value="Ab">A♭/G♯</option>
+                    <option value="A">A</option>
+                    <option value="Bb">B♭/A♯</option>
+                    <option value="B">B</option>
+                </select>
+            </label>
+        </div>
+        <div class="controls">
+            <label style="margin-left: 20px; font-size: 16px;">
+                Position:
+                <select id="positionSelect"
+                    style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
+                    <option value="1">1st (C - Straight)</option>
+                    <option value="2">2nd (G - Cross)</option>
+                    <option value="3">3rd (D - Dorian)</option>
+                    <option value="4">4th (D - Major)</option>
+                    <option value="5">5th (A - Minor)</option>
+                    <option value="6">6th (E - Minor)</option>
+                    <option value="7">7th (B - Locrian)</option>
+                    <option value="8">8th (F♯ - Lydian)</option>
+                    <option value="9">9th (D♭ - Phrygian)</option>
+                    <option value="10">10th (A♭)</option>
+                    <option value="11">11th (E♭)</option>
+                    <option value="12">12th (B♭)</option>
+                </select>
+            </label>
+            <label style="margin-left: 20px; font-size: 16px;">
+                Scale:
+                <select id="scaleSelect"
+                    style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
+                    <option value="chromatic">Chromatic</option>
+                    <option value="major">Major/Ionian</option>
+                    <option value="dorian">Dorian</option>
+                    <option value="phrygian">Phrygian</option>
+                    <option value="lydian">Lydian</option>
+                    <option value="mixolydian">Mixolydian</option>
+                    <option value="minor">Natural Minor/Aeolian</option>
+                    <option value="locrian">Locrian</option>
+                    <option value="harmonic-minor">Harmonic Minor</option>
+                    <option value="melodic-minor-asc">Melodic Minor (ascending)</option>
+                    <option value="melodic-minor-desc">Melodic Minor (descending)</option>
+                    <option value="blues">Blues</option>
+                    <option value="gypsy-minor">Gypsy Minor</option>
+                    <option value="whole-tone">Whole-Tone</option>
+                    <option value="major-pentatonic">Major Pentatonic</option>
+                    <option value="minor-pentatonic">Minor Pentatonic</option>
+                </select>
+            </label>
+        </div>
+
+        <div style="display: flex; justify-content: center;">
+            <div class="harmonica">
+                <div class="holes-container" id="harmonicaHoles"></div>
+            </div>
+        </div>
+
+        <div class="status" id="status">Click "Start Microphone" to begin</div>
+    </div>
+
+    <script type="module" src="harmonica.js"></script>
+</body>
+
+</html>
