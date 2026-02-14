@@ -467,6 +467,9 @@ class HarmonicaUI {
     private currentPosition: number = 1;
     private currentScale: string = 'chromatic';
     private currentKey: string = 'C';
+    private playbackAudioContext: AudioContext | null = null;
+    private currentOscillator: OscillatorNode | null = null;
+    private currentGain: GainNode | null = null;
 
     constructor() {
         this.pitchDetector = new PitchDetector(
@@ -531,6 +534,9 @@ class HarmonicaUI {
                         blowDiv.title = `Blow bend ${blowNote.bend} step`;
                     }
 
+                    // Add playback functionality
+                    this.addNotePlayback(blowDiv, blowNote.frequency);
+
                     // Add deviation display bar
                     const deviationBar = document.createElement('div');
                     deviationBar.className = 'deviation-display';
@@ -565,6 +571,9 @@ class HarmonicaUI {
                     if (drawNote.bend) {
                         drawDiv.title = `Draw bend ${drawNote.bend} step`;
                     }
+
+                    // Add playback functionality
+                    this.addNotePlayback(drawDiv, drawNote.frequency);
 
                     // Add deviation display bar
                     const deviationBar = document.createElement('div');
@@ -825,6 +834,88 @@ class HarmonicaUI {
     private updateStatus(message: string): void {
         const status = document.getElementById('status');
         if (status) status.textContent = message;
+    }
+
+    private addNotePlayback(noteElement: HTMLElement, frequency: number): void {
+        // Make element appear clickable
+        noteElement.style.cursor = 'pointer';
+        noteElement.style.userSelect = 'none';
+
+        // Mouse events
+        noteElement.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            this.playNote(frequency);
+        });
+
+        noteElement.addEventListener('mouseup', () => {
+            this.stopNote();
+        });
+
+        noteElement.addEventListener('mouseleave', () => {
+            this.stopNote();
+        });
+
+        // Touch events
+        noteElement.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.playNote(frequency);
+        });
+
+        noteElement.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.stopNote();
+        });
+
+        noteElement.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            this.stopNote();
+        });
+    }
+
+    private playNote(frequency: number): void {
+        // Stop any currently playing note
+        this.stopNote();
+
+        // Create audio context if it doesn't exist
+        if (!this.playbackAudioContext) {
+            this.playbackAudioContext = new AudioContext();
+        }
+
+        // Create oscillator and gain nodes
+        this.currentOscillator = this.playbackAudioContext.createOscillator();
+        this.currentGain = this.playbackAudioContext.createGain();
+
+        // Set up oscillator for harmonica-like sound
+        this.currentOscillator.type = 'square'; // Square wave for harmonica-like timbre
+        this.currentOscillator.frequency.value = frequency;
+
+        // Connect nodes: Oscillator -> Gain -> Destination
+        this.currentOscillator.connect(this.currentGain);
+        this.currentGain.connect(this.playbackAudioContext.destination);
+
+        // Set up envelope (attack and sustain)
+        const now = this.playbackAudioContext.currentTime;
+        this.currentGain.gain.setValueAtTime(0, now);
+        this.currentGain.gain.linearRampToValueAtTime(0.15, now + 0.05); // Quick attack
+
+        // Start the oscillator
+        this.currentOscillator.start();
+    }
+
+    private stopNote(): void {
+        if (this.currentOscillator && this.currentGain && this.playbackAudioContext) {
+            const now = this.playbackAudioContext.currentTime;
+
+            // Fade out to avoid clicking
+            this.currentGain.gain.cancelScheduledValues(now);
+            this.currentGain.gain.setValueAtTime(this.currentGain.gain.value, now);
+            this.currentGain.gain.linearRampToValueAtTime(0, now + 0.05);
+
+            // Stop and cleanup
+            this.currentOscillator.stop(now + 0.05);
+            this.currentOscillator = null;
+            this.currentGain = null;
+        }
     }
 }
 
