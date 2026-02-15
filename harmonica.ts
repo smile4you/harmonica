@@ -477,6 +477,17 @@ class HarmonicaUI {
             this.onNoSound.bind(this)
         );
 
+        this.loadSettings();
+
+        // If a non-C key was loaded, transpose the layout before initializing
+        if (this.currentKey !== 'C') {
+            harmonicaLayout = createTransposedLayout(this.currentKey);
+            currentKeyOffset = harmonicaKeyOffsets[this.currentKey] || 0;
+        }
+
+        // Update intervals based on loaded position and scale
+        this.updateIntervalsForPosition();
+
         this.initializeHarmonica();
         this.setupEventListeners();
     }
@@ -609,37 +620,53 @@ class HarmonicaUI {
 
         const intervalToggle = document.getElementById('intervalToggle') as HTMLInputElement;
         if (intervalToggle) {
+            // Restore saved state
+            intervalToggle.checked = this.showIntervals;
+
             intervalToggle.addEventListener('change', () => {
                 this.showIntervals = intervalToggle.checked;
                 this.updateNoteLabels();
+                this.saveSettings();
             });
         }
 
         const keySelect = document.getElementById('keySelect') as HTMLSelectElement;
         if (keySelect) {
+            // Restore saved state
+            keySelect.value = this.currentKey;
+
             keySelect.addEventListener('change', () => {
                 this.currentKey = keySelect.value;
                 this.transposeHarmonica();
                 this.updateIntervalsForPosition();
                 this.updateNoteLabels();
+                this.saveSettings();
             });
         }
 
         const positionSelect = document.getElementById('positionSelect') as HTMLSelectElement;
         if (positionSelect) {
+            // Restore saved state
+            positionSelect.value = this.currentPosition.toString();
+
             positionSelect.addEventListener('change', () => {
                 this.currentPosition = parseInt(positionSelect.value);
                 this.updateIntervalsForPosition();
                 this.updateNoteLabels();
+                this.saveSettings();
             });
         }
 
         const scaleSelect = document.getElementById('scaleSelect') as HTMLSelectElement;
         if (scaleSelect) {
+            // Restore saved state
+            scaleSelect.value = this.currentScale;
+
             scaleSelect.addEventListener('change', () => {
                 this.currentScale = scaleSelect.value;
                 this.updateIntervalsForPosition();
                 this.updateNoteLabels();
+                this.saveSettings();
             });
         }
 
@@ -834,6 +861,35 @@ class HarmonicaUI {
     private updateStatus(message: string): void {
         const status = document.getElementById('status');
         if (status) status.textContent = message;
+    }
+
+    private loadSettings(): void {
+        try {
+            const savedSettings = localStorage.getItem('harmonicaSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                this.showIntervals = settings.showIntervals ?? false;
+                this.currentKey = settings.currentKey ?? 'C';
+                this.currentPosition = settings.currentPosition ?? 1;
+                this.currentScale = settings.currentScale ?? 'chromatic';
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+        }
+    }
+
+    private saveSettings(): void {
+        try {
+            const settings = {
+                showIntervals: this.showIntervals,
+                currentKey: this.currentKey,
+                currentPosition: this.currentPosition,
+                currentScale: this.currentScale
+            };
+            localStorage.setItem('harmonicaSettings', JSON.stringify(settings));
+        } catch (error) {
+            console.error('Error saving settings:', error);
+        }
     }
 
     private addNotePlayback(noteElement: HTMLElement, frequency: number): void {

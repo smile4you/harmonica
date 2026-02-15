@@ -405,6 +405,14 @@ class HarmonicaUI {
         this.currentOscillator = null;
         this.currentGain = null;
         this.pitchDetector = new PitchDetector(this.onPitchDetected.bind(this), this.onNoSound.bind(this));
+        this.loadSettings();
+        // If a non-C key was loaded, transpose the layout before initializing
+        if (this.currentKey !== 'C') {
+            harmonicaLayout = createTransposedLayout(this.currentKey);
+            currentKeyOffset = harmonicaKeyOffsets[this.currentKey] || 0;
+        }
+        // Update intervals based on loaded position and scale
+        this.updateIntervalsForPosition();
         this.initializeHarmonica();
         this.setupEventListeners();
     }
@@ -519,34 +527,46 @@ class HarmonicaUI {
         }
         const intervalToggle = document.getElementById('intervalToggle');
         if (intervalToggle) {
+            // Restore saved state
+            intervalToggle.checked = this.showIntervals;
             intervalToggle.addEventListener('change', () => {
                 this.showIntervals = intervalToggle.checked;
                 this.updateNoteLabels();
+                this.saveSettings();
             });
         }
         const keySelect = document.getElementById('keySelect');
         if (keySelect) {
+            // Restore saved state
+            keySelect.value = this.currentKey;
             keySelect.addEventListener('change', () => {
                 this.currentKey = keySelect.value;
                 this.transposeHarmonica();
                 this.updateIntervalsForPosition();
                 this.updateNoteLabels();
+                this.saveSettings();
             });
         }
         const positionSelect = document.getElementById('positionSelect');
         if (positionSelect) {
+            // Restore saved state
+            positionSelect.value = this.currentPosition.toString();
             positionSelect.addEventListener('change', () => {
                 this.currentPosition = parseInt(positionSelect.value);
                 this.updateIntervalsForPosition();
                 this.updateNoteLabels();
+                this.saveSettings();
             });
         }
         const scaleSelect = document.getElementById('scaleSelect');
         if (scaleSelect) {
+            // Restore saved state
+            scaleSelect.value = this.currentScale;
             scaleSelect.addEventListener('change', () => {
                 this.currentScale = scaleSelect.value;
                 this.updateIntervalsForPosition();
                 this.updateNoteLabels();
+                this.saveSettings();
             });
         }
         // Apply initial color coding and position labels
@@ -721,6 +741,36 @@ class HarmonicaUI {
         const status = document.getElementById('status');
         if (status)
             status.textContent = message;
+    }
+    loadSettings() {
+        var _a, _b, _c, _d;
+        try {
+            const savedSettings = localStorage.getItem('harmonicaSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                this.showIntervals = (_a = settings.showIntervals) !== null && _a !== void 0 ? _a : false;
+                this.currentKey = (_b = settings.currentKey) !== null && _b !== void 0 ? _b : 'C';
+                this.currentPosition = (_c = settings.currentPosition) !== null && _c !== void 0 ? _c : 1;
+                this.currentScale = (_d = settings.currentScale) !== null && _d !== void 0 ? _d : 'chromatic';
+            }
+        }
+        catch (error) {
+            console.error('Error loading settings:', error);
+        }
+    }
+    saveSettings() {
+        try {
+            const settings = {
+                showIntervals: this.showIntervals,
+                currentKey: this.currentKey,
+                currentPosition: this.currentPosition,
+                currentScale: this.currentScale
+            };
+            localStorage.setItem('harmonicaSettings', JSON.stringify(settings));
+        }
+        catch (error) {
+            console.error('Error saving settings:', error);
+        }
     }
     addNotePlayback(noteElement, frequency) {
         // Make element appear clickable
