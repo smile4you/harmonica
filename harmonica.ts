@@ -941,9 +941,14 @@ class HarmonicaUI {
         this.currentOscillator = this.playbackAudioContext.createOscillator();
         this.currentGain = this.playbackAudioContext.createGain();
 
+        // For high-key harmonicas (offset >= 7), play an octave lower
+        // This is the opposite of the pitch detection logic which doubles frequencies
+        const keyOffset = harmonicaKeyOffsets[this.currentKey] || 0;
+        const playbackFrequency = keyOffset >= 7 ? frequency / 2 : frequency;
+
         // Set up oscillator for harmonica-like sound
         this.currentOscillator.type = 'square'; // Square wave for harmonica-like timbre
-        this.currentOscillator.frequency.value = frequency;
+        this.currentOscillator.frequency.value = playbackFrequency;
 
         // Connect nodes: Oscillator -> Gain -> Destination
         this.currentOscillator.connect(this.currentGain);
