@@ -13,6 +13,7 @@ interface HarmonicaNote {
 const baseHarmonicaLayout: HarmonicaNote[] = [
     // Hole 1
     { hole: 1, type: 'blow', note: 'C4', frequency: 261.63 },
+    { hole: 1, type: 'blow', note: 'E♭4', frequency: 311.13, bend: 'ob' },
     { hole: 1, type: 'draw', note: 'D4', frequency: 293.66 },
     { hole: 1, type: 'draw', note: 'D♭4', frequency: 277.18, bend: '1/2' },
 
@@ -31,21 +32,25 @@ const baseHarmonicaLayout: HarmonicaNote[] = [
 
     // Hole 4
     { hole: 4, type: 'blow', note: 'C5', frequency: 523.25 },
+    { hole: 4, type: 'blow', note: 'E♭5', frequency: 622.25, bend: 'ob' },
     { hole: 4, type: 'draw', note: 'D5', frequency: 587.33 },
     { hole: 4, type: 'draw', note: 'D♭5', frequency: 554.37, bend: '1/2' },
 
     // Hole 5
     { hole: 5, type: 'blow', note: 'E5', frequency: 659.25 },
+    { hole: 5, type: 'blow', note: 'G♭5', frequency: 739.99, bend: 'ob' },
     { hole: 5, type: 'draw', note: 'F5', frequency: 698.46 },
 
     // Hole 6
     { hole: 6, type: 'blow', note: 'G5', frequency: 783.99 },
+    { hole: 6, type: 'blow', note: 'B♭5', frequency: 932.33, bend: 'ob' },
     { hole: 6, type: 'draw', note: 'A5', frequency: 880.00 },
     { hole: 6, type: 'draw', note: 'A♭5', frequency: 830.61, bend: '1/2' },
 
     // Hole 7
     { hole: 7, type: 'blow', note: 'C6', frequency: 1046.50 },
     { hole: 7, type: 'draw', note: 'B5', frequency: 987.77 },
+    { hole: 7, type: 'draw', note: 'D♭6', frequency: 1108.73, bend: 'od' },
 
     // Hole 8
     { hole: 8, type: 'blow', note: 'E6', frequency: 1318.51 },
@@ -56,12 +61,14 @@ const baseHarmonicaLayout: HarmonicaNote[] = [
     { hole: 9, type: 'blow', note: 'G6', frequency: 1567.98 },
     { hole: 9, type: 'blow', note: 'G♭6', frequency: 1479.98, bend: '1/2' },
     { hole: 9, type: 'draw', note: 'F6', frequency: 1396.91 },
+    { hole: 9, type: 'draw', note: 'A♭6', frequency: 1661.22, bend: 'od' },
 
     // Hole 10
     { hole: 10, type: 'blow', note: 'C7', frequency: 2093.00 },
     { hole: 10, type: 'blow', note: 'B6', frequency: 1975.53, bend: '1/2' },
     { hole: 10, type: 'blow', note: 'B♭6', frequency: 1864.66, bend: '1' },
     { hole: 10, type: 'draw', note: 'A6', frequency: 1760.00 },
+    { hole: 10, type: 'draw', note: 'D♭7', frequency: 2217.46, bend: 'od' },
 ];
 
 // Chromatic scale for interval calculation (must be defined before transposeNote)
@@ -482,6 +489,7 @@ class HarmonicaUI {
     private pitchDetector: PitchDetector;
     private activeNotes: Set<string> = new Set();
     private showIntervals: boolean = false;
+    private showOverblows: boolean = false;
     private currentPosition: number = 1;
     private currentScale: string = 'chromatic';
     private currentKey: string = 'C';
@@ -513,6 +521,7 @@ class HarmonicaUI {
     private initializeHarmonica(): void {
         const container = document.getElementById('harmonicaHoles');
         if (!container) return;
+        container.innerHTML = '';
 
         const holes = Array.from({ length: 10 }, (_, i) => i + 1);
 
@@ -520,29 +529,21 @@ class HarmonicaUI {
             const holeDiv = document.createElement('div');
             holeDiv.className = 'hole';
 
-            // Get all notes for this hole
-            const blowNotes = harmonicaLayout.filter(n => n.hole === holeNum && n.type === 'blow');
-            const drawNotes = harmonicaLayout.filter(n => n.hole === holeNum && n.type === 'draw');
+            // Get all notes for this hole, filtering out overblows/overdraws if not shown
+            const isOverblow = (n: HarmonicaNote) => n.bend === 'ob' || n.bend === 'od';
+            const blowNotes = harmonicaLayout.filter(n => n.hole === holeNum && n.type === 'blow' && (this.showOverblows || !isOverblow(n)));
+            const drawNotes = harmonicaLayout.filter(n => n.hole === holeNum && n.type === 'draw' && (this.showOverblows || !isOverblow(n)));
 
-            // Blow notes (including bends)
+            // Blow notes (including bends and overblows)
             if (blowNotes.length > 0) {
                 const blowContainer = document.createElement('div');
                 blowContainer.className = 'note-group note-group-blow';
 
-                // Sort: for holes 7-10 (higher octave), place bends above main note
-                // For other holes, main note first then bends
+                // Sort: bends/overblows above main note, main note closest to center
                 const sortedBlowNotes = [...blowNotes].sort((a, b) => {
-                    if (holeNum >= 7) {
-                        // Higher octave: bends above main note
-                        if (a.bend && !b.bend) return -1; // a (bend) comes first
-                        if (!a.bend && b.bend) return 1;  // b (bend) comes first
-                        return b.frequency - a.frequency; // same type: sort by frequency
-                    } else {
-                        // Lower octave: main note above bends
-                        if (!a.bend && b.bend) return -1; // a (main) comes first
-                        if (a.bend && !b.bend) return 1;  // b (main) comes first
-                        return b.frequency - a.frequency; // same type: sort by frequency
-                    }
+                    if (a.bend && !b.bend) return -1; // bend/overblow before main
+                    if (!a.bend && b.bend) return 1;  // main after bend/overblow
+                    return b.frequency - a.frequency;  // within same type: desc frequency
                 });
 
                 // Add spacers to align all main notes horizontally (max 2 bends above any main)
@@ -559,7 +560,9 @@ class HarmonicaUI {
                     blowDiv.className = `note blow ${blowNote.bend ? 'bend' : 'main'}`;
                     blowDiv.id = `note-${blowNote.note}-blow${blowNote.bend ? '-bend' : ''}`;
                     blowDiv.textContent = this.showIntervals ? (blowNote.interval || getDisplayNoteName(blowNote.note)) : getDisplayNoteName(blowNote.note);
-                    if (blowNote.bend) {
+                    if (blowNote.bend === 'ob') {
+                        blowDiv.title = 'Overblow';
+                    } else if (blowNote.bend) {
                         blowDiv.title = `Blow bend ${blowNote.bend} step`;
                     }
 
@@ -589,15 +592,21 @@ class HarmonicaUI {
                 const drawContainer = document.createElement('div');
                 drawContainer.className = 'note-group note-group-draw';
 
-                // Sort: highest pitch first (main note usually highest, then bends descending)
-                const sortedDrawNotes = [...drawNotes].sort((a, b) => b.frequency - a.frequency);
+                // Sort: main note first (closest to center), then bends/overdraws below
+                const sortedDrawNotes = [...drawNotes].sort((a, b) => {
+                    if (!a.bend && b.bend) return -1; // main before bend/overdraw
+                    if (a.bend && !b.bend) return 1;  // bend/overdraw after main
+                    return b.frequency - a.frequency;  // within same type: desc frequency
+                });
 
                 sortedDrawNotes.forEach(drawNote => {
                     const drawDiv = document.createElement('div');
                     drawDiv.className = `note draw ${drawNote.bend ? 'bend' : 'main'}`;
                     drawDiv.id = `note-${drawNote.note}-draw${drawNote.bend ? '-bend' : ''}`;
                     drawDiv.textContent = this.showIntervals ? (drawNote.interval || getDisplayNoteName(drawNote.note)) : getDisplayNoteName(drawNote.note);
-                    if (drawNote.bend) {
+                    if (drawNote.bend === 'od') {
+                        drawDiv.title = 'Overdraw';
+                    } else if (drawNote.bend) {
                         drawDiv.title = `Draw bend ${drawNote.bend} step`;
                     }
 
@@ -643,6 +652,19 @@ class HarmonicaUI {
 
             intervalToggle.addEventListener('change', () => {
                 this.showIntervals = intervalToggle.checked;
+                this.updateNoteLabels();
+                this.saveSettings();
+            });
+        }
+
+        const overblowToggle = document.getElementById('overblowToggle') as HTMLInputElement;
+        if (overblowToggle) {
+            // Restore saved state
+            overblowToggle.checked = this.showOverblows;
+
+            overblowToggle.addEventListener('change', () => {
+                this.showOverblows = overblowToggle.checked;
+                this.initializeHarmonica();
                 this.updateNoteLabels();
                 this.saveSettings();
             });
@@ -887,6 +909,7 @@ class HarmonicaUI {
             if (savedSettings) {
                 const settings = JSON.parse(savedSettings);
                 this.showIntervals = settings.showIntervals ?? false;
+                this.showOverblows = settings.showOverblows ?? false;
                 this.currentKey = settings.currentKey ?? 'C';
                 this.currentPosition = settings.currentPosition ?? 1;
                 this.currentScale = settings.currentScale ?? 'chromatic';
@@ -900,6 +923,7 @@ class HarmonicaUI {
         try {
             const settings = {
                 showIntervals: this.showIntervals,
+                showOverblows: this.showOverblows,
                 currentKey: this.currentKey,
                 currentPosition: this.currentPosition,
                 currentScale: this.currentScale
