@@ -527,7 +527,7 @@ class HarmonicaUI {
             // Blow notes (including bends)
             if (blowNotes.length > 0) {
                 const blowContainer = document.createElement('div');
-                blowContainer.className = 'note-group';
+                blowContainer.className = 'note-group note-group-blow';
 
                 // Sort: for holes 7-10 (higher octave), place bends above main note
                 // For other holes, main note first then bends
@@ -587,7 +587,7 @@ class HarmonicaUI {
             // Draw notes (including bends)
             if (drawNotes.length > 0) {
                 const drawContainer = document.createElement('div');
-                drawContainer.className = 'note-group';
+                drawContainer.className = 'note-group note-group-draw';
 
                 // Sort: highest pitch first (main note usually highest, then bends descending)
                 const sortedDrawNotes = [...drawNotes].sort((a, b) => b.frequency - a.frequency);
@@ -847,19 +847,19 @@ class HarmonicaUI {
                 // Find the text node (excluding the deviation-display child)
                 const displayText = this.showIntervals ? harmonicaNote.interval : getDisplayNoteName(harmonicaNote.note);
 
-                // Remove existing degree classes
-                noteElement.classList.remove('out-of-scale', 'degree-1', 'degree-2', 'degree-b2', 'degree-3', 'degree-b3',
-                    'degree-4', 'degree-s4', 'degree-b5', 'degree-5', 'degree-6', 'degree-b6', 'degree-7', 'degree-b7',
-                    'degree-s5', 'degree-s6');
+                // Remove existing scale classes
+                noteElement.classList.remove('out-of-scale', 'in-scale', 'scale-root');
 
-                // Apply color coding based on scale and position (skip for chromatic)
+                // Bold the root note in all scales
+                if (harmonicaNote.interval === '1') {
+                    noteElement.classList.add('scale-root');
+                }
+
+                // Apply scale highlighting (skip for chromatic)
                 if (harmonicaNote.interval && this.currentScale !== 'chromatic') {
                     if (harmonicaNote.inScale) {
-                        // Convert interval to CSS class name (e.g., '♭3' -> 'degree-b3', '♯4' -> 'degree-s4')
-                        const cssInterval = harmonicaNote.interval.replace('♭', 'b').replace('♯', 's');
-                        noteElement.classList.add(`degree-${cssInterval}`);
+                        noteElement.classList.add('in-scale');
                     } else {
-                        // Note is not in scale, dim it
                         noteElement.classList.add('out-of-scale');
                     }
                 }

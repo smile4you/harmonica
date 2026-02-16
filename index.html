@@ -137,7 +137,7 @@
             position: absolute;
             left: 0;
             right: 0;
-            top: 148px;
+            top: 158px;
             height: 28px;
             background: #666;
             z-index: 0;
@@ -148,7 +148,7 @@
             position: absolute;
             left: 0;
             right: 0;
-            top: 100px;
+            top: 110px;
             height: 124px;
             border: 1px solid #333;
             border-radius: 6px;
@@ -170,7 +170,7 @@
             content: '';
             position: absolute;
             right: 0;
-            top: 100px;
+            top: 111px;
             height: 124px;
             width: 1px;
             background: #333;
@@ -190,6 +190,14 @@
 
         .note-group-blow {
             margin-bottom: 0;
+        }
+
+        .note-group-blow .note.main {
+            margin-top: 2px;
+        }
+
+        .note-group-draw .note.main {
+            margin-bottom: 2px;
         }
 
         .note {
@@ -214,7 +222,7 @@
         .note.main {
             width: 62px;
             height: 48px;
-            font-size: 14px;
+            font-size: 17px;
         }
 
         .note.bend {
@@ -224,12 +232,14 @@
             background: linear-gradient(145deg, #f2f2f2, #e0e0e0);
             border: 1px solid #ccc;
             border-radius: 3px;
+            margin: 2px 0;
         }
 
         .note-spacer {
             width: 54px;
             height: 48px;
             visibility: hidden;
+            margin: 2px 0;
         }
 
         .note .deviation-display {
@@ -262,118 +272,25 @@
             border-color: #e6c800;
         }
 
-        .note.blow {
-            background: white;
-        }
-
-        .note.blow.active {
-            background: #ffe033;
-        }
-
-        .note.draw {
-            background: white;
-        }
-
+        .note.blow.active,
         .note.draw.active {
             background: #ffe033;
         }
 
-        /* Scale degree colors - applied when intervals are shown */
-        .note.degree-1 {
-            background: linear-gradient(145deg, #ff6b6b, #ee5a5a) !important;
-            color: white !important;
+        /* Scale note highlighting */
+        .note.in-scale {
+            background: #fff3b0 !important;
+            border-radius: 50%;
+            border: 1px solid #e6d280 !important;
         }
 
-        /* Root - Red */
-        .note.degree-2 {
-            background: linear-gradient(145deg, #ffa502, #ff8c00) !important;
-            color: white !important;
+        .note.scale-root {
+            font-weight: bold !important;
         }
 
-        /* 2nd - Orange */
-        .note.degree-b2 {
-            background: linear-gradient(145deg, #ff7f50, #ff6347) !important;
-            color: white !important;
-        }
-
-        /* ♭2 - Coral */
-        .note.degree-3 {
-            background: linear-gradient(145deg, #ffdd59, #ffd32a) !important;
-            color: #333 !important;
-        }
-
-        /* 3rd - Yellow */
-        .note.degree-b3 {
-            background: linear-gradient(145deg, #f9ca24, #f0b90b) !important;
-            color: #333 !important;
-        }
-
-        /* ♭3 - Dark Yellow */
-        .note.degree-4 {
-            background: linear-gradient(145deg, #1dd1a1, #10ac84) !important;
-            color: white !important;
-        }
-
-        /* 4th - Green */
-        .note.degree-s4 {
-            background: linear-gradient(145deg, #0fb9b1, #009688) !important;
-            color: white !important;
-        }
-
-        /* ♯4 - Teal */
-        .note.degree-b5 {
-            background: linear-gradient(145deg, #00d2d3, #01a3a4) !important;
-            color: white !important;
-        }
-
-        /* ♭5 - Cyan */
-        .note.degree-5 {
-            background: linear-gradient(145deg, #5f27cd, #4d1fb8) !important;
-            color: white !important;
-        }
-
-        /* 5th - Purple */
-        .note.degree-6 {
-            background: linear-gradient(145deg, #48dbfb, #0abde3) !important;
-            color: white !important;
-        }
-
-        /* 6th - Light Blue */
-        .note.degree-b6 {
-            background: linear-gradient(145deg, #3867d6, #2f5bb7) !important;
-            color: white !important;
-        }
-
-        /* ♭6 - Blue */
-        .note.degree-7 {
-            background: linear-gradient(145deg, #ff9ff3, #f368e0) !important;
-            color: white !important;
-        }
-
-        /* 7th - Pink */
-        .note.degree-b7 {
-            background: linear-gradient(145deg, #ee5a6f, #c44569) !important;
-            color: white !important;
-        }
-
-        /* ♭7 - Dark Pink */
-        .note.degree-s5 {
-            background: linear-gradient(145deg, #a29bfe, #6c5ce7) !important;
-            color: white !important;
-        }
-
-        /* ♯5 - Lavender */
-        .note.degree-s6 {
-            background: linear-gradient(145deg, #fd79a8, #e84393) !important;
-            color: white !important;
-        }
-
-        /* ♯6 - Magenta */
         .note.out-of-scale {
             opacity: 0.4 !important;
         }
-
-        /* Notes not in scale - dimmed */
 
         .hole-number {
             font-size: 10px;
