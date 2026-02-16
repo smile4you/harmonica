@@ -61,6 +61,22 @@ const enharmonicMap = {
     'A♭': 'G♯',
     'B♭': 'A♯'
 };
+// Enharmonic pairs for display (sharp on top, flat on bottom)
+const enharmonicDisplayPairs = {
+    'C♯': ['C♯', 'D♭'], 'D♭': ['C♯', 'D♭'],
+    'D♯': ['D♯', 'E♭'], 'E♭': ['D♯', 'E♭'],
+    'F♯': ['F♯', 'G♭'], 'G♭': ['F♯', 'G♭'],
+    'G♯': ['G♯', 'A♭'], 'A♭': ['G♯', 'A♭'],
+    'A♯': ['A♯', 'B♭'], 'B♭': ['A♯', 'B♭'],
+};
+function getDisplayNoteName(noteName) {
+    const name = noteName.replace(/[0-9]/g, '');
+    const pair = enharmonicDisplayPairs[name];
+    if (pair) {
+        return `${pair[0]}\n${pair[1]}`;
+    }
+    return name;
+}
 // Harmonica key to semitone offset mapping (from C)
 const harmonicaKeyOffsets = {
     'LF': -7, // Low F (F is 7 semitones below C, but one octave lower)
@@ -463,7 +479,7 @@ class HarmonicaUI {
                     const blowDiv = document.createElement('div');
                     blowDiv.className = `note blow ${blowNote.bend ? 'bend' : 'main'}`;
                     blowDiv.id = `note-${blowNote.note}-blow${blowNote.bend ? '-bend' : ''}`;
-                    blowDiv.textContent = this.showIntervals ? (blowNote.interval || blowNote.note) : blowNote.note;
+                    blowDiv.textContent = this.showIntervals ? (blowNote.interval || getDisplayNoteName(blowNote.note)) : getDisplayNoteName(blowNote.note);
                     if (blowNote.bend) {
                         blowDiv.title = `Blow bend ${blowNote.bend} step`;
                     }
@@ -492,7 +508,7 @@ class HarmonicaUI {
                     const drawDiv = document.createElement('div');
                     drawDiv.className = `note draw ${drawNote.bend ? 'bend' : 'main'}`;
                     drawDiv.id = `note-${drawNote.note}-draw${drawNote.bend ? '-bend' : ''}`;
-                    drawDiv.textContent = this.showIntervals ? (drawNote.interval || drawNote.note) : drawNote.note;
+                    drawDiv.textContent = this.showIntervals ? (drawNote.interval || getDisplayNoteName(drawNote.note)) : getDisplayNoteName(drawNote.note);
                     if (drawNote.bend) {
                         drawDiv.title = `Draw bend ${drawNote.bend} step`;
                     }
@@ -712,11 +728,11 @@ class HarmonicaUI {
             const noteElement = document.getElementById(`note-${harmonicaNote.note}-${harmonicaNote.type}${bendSuffix}`);
             if (noteElement) {
                 // Find the text node (excluding the deviation-display child)
-                const displayText = this.showIntervals ? harmonicaNote.interval : harmonicaNote.note;
+                const displayText = this.showIntervals ? harmonicaNote.interval : getDisplayNoteName(harmonicaNote.note);
                 // Remove existing degree classes
                 noteElement.classList.remove('out-of-scale', 'degree-1', 'degree-2', 'degree-b2', 'degree-3', 'degree-b3', 'degree-4', 'degree-s4', 'degree-b5', 'degree-5', 'degree-6', 'degree-b6', 'degree-7', 'degree-b7', 'degree-s5', 'degree-s6');
-                // Always apply color coding based on scale and position
-                if (harmonicaNote.interval) {
+                // Apply color coding based on scale and position (skip for chromatic)
+                if (harmonicaNote.interval && this.currentScale !== 'chromatic') {
                     if (harmonicaNote.inScale) {
                         // Convert interval to CSS class name (e.g., '♭3' -> 'degree-b3', '♯4' -> 'degree-s4')
                         const cssInterval = harmonicaNote.interval.replace('♭', 'b').replace('♯', 's');

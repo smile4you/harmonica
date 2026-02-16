@@ -14,14 +14,14 @@
 
         body {
             font-family: Verdana, Geneva, Tahoma, sans-serif;
-            background: #1f3d70;
+            background: #ffffff;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             padding: 20px;
             min-width: 730px;
-            color: white;
+            color: #333;
         }
 
         .container {
@@ -31,8 +31,7 @@
 
         h1 {
             text-align: center;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            margin-bottom: 0;
         }
 
         .controls {
@@ -41,9 +40,12 @@
         }
 
         #startBtn {
-            padding: 15px 30px;
+            width: 100%;
+            height: 70%;
+            padding: auto;
+            /*: 15px 30px;*/
             font-size: 18px;
-            background: #4CAF50;
+            background: #555;
             color: white;
             border: none;
             border-radius: 8px;
@@ -52,7 +54,7 @@
         }
 
         #startBtn:hover {
-            background: #45a049;
+            background: #333;
         }
 
         #startBtn:disabled {
@@ -63,7 +65,7 @@
         .pitch-info {
             text-align: center;
             margin-bottom: 30px;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.05);
             padding: 20px;
             border-radius: 10px;
         }
@@ -76,7 +78,7 @@
 
         .frequency {
             font-size: 24px;
-            color: #feca57;
+            color: #888;
         }
 
         .pitch-deviation {
@@ -86,7 +88,7 @@
         .deviation-bar {
             width: 100%;
             height: 30px;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.1);
             border-radius: 15px;
             position: relative;
             overflow: hidden;
@@ -106,7 +108,7 @@
             position: absolute;
             width: 2px;
             height: 100%;
-            background: white;
+            background: #333;
             left: 50%;
             transform: translateX(-50%);
         }
@@ -117,17 +119,41 @@
         }
 
         .harmonica {
-            background: linear-gradient(to bottom, #c0c0c0, #808080);
-            border-radius: 10px;
-            padding: 30px 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            background: white;
+            border-radius: 4px;
+            padding: 20px 10px;
             display: inline-block;
         }
 
         .holes-container {
             display: flex;
-            gap: 10px;
+            gap: 0px;
             justify-content: center;
+            position: relative;
+        }
+
+        .holes-container::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 148px;
+            height: 28px;
+            background: #666;
+            z-index: 0;
+        }
+
+        .holes-container::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 100px;
+            height: 124px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            pointer-events: none;
+            z-index: 5;
         }
 
         .hole {
@@ -135,48 +161,74 @@
             flex-direction: column;
             align-items: center;
             gap: 0px;
+            position: relative;
+            z-index: 1;
+            padding: 0;
+        }
+
+        .hole::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 100px;
+            height: 124px;
+            width: 1px;
+            background: #333;
+            z-index: 3;
+        }
+
+        .hole:last-child::after {
+            display: none;
         }
 
         .note-group {
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 2px;
             align-items: center;
+        }
+
+        .note-group-blow {
+            margin-bottom: 0;
         }
 
         .note {
-            width: 60px;
-            height: 50px;
+            width: 62px;
+            height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(145deg, #e6e6e6, #cccccc);
-            border: 2px solid #999;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 20px;
+            background: white;
+            border: none;
+            border-radius: 0;
+            font-weight: normal;
+            font-size: 14px;
             color: #333;
             transition: all 0.15s;
-            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
             position: relative;
+            white-space: pre-line;
+            text-align: center;
+            line-height: 1.15;
         }
 
         .note.main {
-            width: 60px;
-            height: 50px;
-            font-size: 16px;
+            width: 62px;
+            height: 48px;
+            font-size: 14px;
         }
 
         .note.bend {
-            width: 50px;
-            height: 35px;
-            font-size: 12px;
-            opacity: 0.85;
+            width: 54px;
+            height: 48px;
+            font-size: 14px;
+            background: linear-gradient(145deg, #f2f2f2, #e0e0e0);
+            border: 1px solid #ccc;
+            border-radius: 3px;
         }
 
         .note-spacer {
-            width: 50px;
-            height: 35px;
+            width: 54px;
+            height: 48px;
             visibility: hidden;
         }
 
@@ -203,27 +255,27 @@
         }
 
         .note.active {
-            background: linear-gradient(145deg, #4CAF50, #45a049);
-            color: white;
+            background: #ffe033;
+            color: #333;
             transform: scale(1.15);
-            box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
-            border-color: #2d7a2f;
+            box-shadow: 0 0 15px rgba(255, 224, 51, 0.6);
+            border-color: #e6c800;
         }
 
         .note.blow {
-            background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+            background: white;
         }
 
         .note.blow.active {
-            background: linear-gradient(145deg, #2196F3, #1976D2);
+            background: #ffe033;
         }
 
         .note.draw {
-            background: linear-gradient(145deg, #fff3e0, #ffe0b2);
+            background: white;
         }
 
         .note.draw.active {
-            background: linear-gradient(145deg, #FF9800, #F57C00);
+            background: #ffe033;
         }
 
         /* Scale degree colors - applied when intervals are shown */
@@ -324,13 +376,19 @@
         /* Notes not in scale - dimmed */
 
         .hole-number {
-            font-size: 14px;
-            font-weight: bold;
-            color: #333;
-            background: rgba(255, 255, 255, 0.8);
-            padding: 3px 8px;
-            border-radius: 4px;
-            margin-top: 3px;
+            font-size: 10px;
+            font-weight: normal;
+            color: white;
+            background: transparent;
+            padding: 0;
+            width: 62px;
+            height: 28px;
+            line-height: 28px;
+            text-align: center;
+            border-radius: 0;
+            margin: 0;
+            position: relative;
+            z-index: 1;
         }
 
         .label {
@@ -340,22 +398,27 @@
 
         .status {
             text-align: center;
-            margin-top: 20px;
+            margin-top: 10px;
             font-size: 14px;
-            color: #feca57;
+            color: #888;
         }
 
         .header {
             display: grid;
             grid-template-columns: 120px 1fr 120px;
             align-items: center;
+            justify-content: center;
+            ;
+            gap: 40px;
+            width: fit-content;
+            margin: 0 auto;
         }
 
 
         .header svg {
             width: 120px;
-            color: white;
-            fill: white;
+            color: #333;
+            fill: #333;
         }
     </style>
 </head>
@@ -493,13 +556,26 @@
                     </g>
                 </g>
             </svg>
-            <h1>Harmonica Trainer</h1>
-        </div>
+            <div>
+                <h1>Harmonica Trainer</h1>
+                <div class="status" id="status">Click "Start Microphone" to begin</div>
+            </div>
 
+
+            <button id="startBtn">Start Microphone</button>
+
+        </div>
 
         <div class="controls">
-            <button id="startBtn">Start Microphone</button>
+            <div style="display: flex; justify-content: center;">
+                <div class="harmonica">
+                    <div class="holes-container" id="harmonicaHoles"></div>
+                </div>
+            </div>
+
+
         </div>
+
         <div class="controls">
             <label style="margin-left: 20px; font-size: 16px; cursor: pointer;">
                 <input type="checkbox" id="intervalToggle" style="cursor: pointer; margin-right: 8px;">
@@ -568,15 +644,8 @@
                 </select>
             </label>
         </div>
-
-        <div style="display: flex; justify-content: center;">
-            <div class="harmonica">
-                <div class="holes-container" id="harmonicaHoles"></div>
-            </div>
-        </div>
-
-        <div class="status" id="status">Click "Start Microphone" to begin</div>
     </div>
+
 
     <script type="module" src="harmonica.js"></script>
 </body>
