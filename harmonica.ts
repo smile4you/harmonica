@@ -302,7 +302,9 @@ class PitchDetector {
 
     async start(): Promise<void> {
         try {
-            this.audioContext = new AudioContext();
+            const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+            this.audioContext = new AudioCtx();
+            await this.audioContext.resume();
             this.analyser = this.audioContext.createAnalyser();
             this.analyser.fftSize = 4096; // Balanced for accuracy and latency
 

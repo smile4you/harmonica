@@ -259,7 +259,9 @@ class PitchDetector {
     start() {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                this.audioContext = new AudioContext();
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                this.audioContext = new AudioCtx();
+                yield this.audioContext.resume();
                 this.analyser = this.audioContext.createAnalyser();
                 this.analyser.fftSize = 4096; // Balanced for accuracy and latency
                 const bufferLength = this.analyser.fftSize;
