@@ -270,6 +270,52 @@ function computeNoteFrequency(noteName: string): number {
     return 440 * Math.pow(2, ((octave - 4) * 12 + (semisFromC[normalized] || 0) - 9) / 12);
 }
 
+// Returns the 7 diatonic note names (letter + accidental, no octave) for a given root and scale type.
+// Returns [] for non-7-note scales.
+function getScaleNoteNames(rootNote: string, scaleType: string): string[] {
+    const pattern = scalePatterns[scaleType];
+    if (!pattern || pattern.length !== 7) return [];
+
+    const letters = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    const baseS: {[k: string]: number} = {C:0, D:2, E:4, F:5, G:7, A:9, B:11};
+
+    const rootLetter = rootNote[0];
+    const rootAcc = rootNote.slice(1).replace(/[0-9]/g, '');
+    const rootLetterIdx = letters.indexOf(rootLetter);
+    let rootS = baseS[rootLetter] ?? 0;
+    for (const ch of rootAcc) { if (ch === '♯') rootS++; else if (ch === '♭') rootS--; }
+    rootS = ((rootS % 12) + 12) % 12;
+
+    return pattern.map((offset, i) => {
+        const target = ((rootS + offset) % 12 + 12) % 12;
+        const letter = letters[(rootLetterIdx + i) % 7];
+        let diff = target - (baseS[letter] ?? 0);
+        if (diff > 6) diff -= 12;
+        if (diff < -6) diff += 12;
+        return letter + (diff === 1 ? '♯' : diff === 2 ? '♯♯' : diff === -1 ? '♭' : diff === -2 ? '♭♭' : '');
+    });
+}
+
+// Returns the chord quality suffix and minor flag for a scale degree.
+function getDiatonicChordQuality(scaleNotes: string[], degree: number): {quality: string, isMinor: boolean} {
+    const baseS: {[k: string]: number} = {C:0, D:2, E:4, F:5, G:7, A:9, B:11};
+    const toS = (name: string) => {
+        let s = baseS[name[0]] ?? 0;
+        for (let i = 1; i < name.length; i++) { if (name[i] === '♯') s++; else if (name[i] === '♭') s--; }
+        return ((s % 12) + 12) % 12;
+    };
+    const rootS = toS(scaleNotes[degree]);
+    const iv = (idx: number) => ((toS(scaleNotes[(degree + idx) % 7]) - rootS) + 12) % 12;
+    const key = `${iv(2)}-${iv(4)}-${iv(6)}`;
+    const map: {[k: string]: [string, boolean]} = {
+        '4-7-11': ['maj7', false], '3-7-10': ['m7', true],  '4-7-10': ['7', false],
+        '3-6-10': ['m7b5', true],  '3-6-9':  ['dim7', true], '3-7-11': ['mMaj7', true],
+        '4-8-11': ['augMaj7', false], '4-8-10': ['aug7', false],
+    };
+    const r = map[key];
+    return r ? {quality: r[0], isMinor: r[1]} : {quality: '', isMinor: false};
+}
+
 // Working harmonica layout (will be transposed based on key)
 let harmonicaLayout: HarmonicaNote[] = JSON.parse(JSON.stringify(baseHarmonicaLayout));
 
@@ -1081,6 +1127,148 @@ class HarmonicaUI {
             }
         });
         this.updatePianoLabels();
+        this.updateSheetMusic();
+        this.updateChordChart();
+    }
+
+    private updateChordChart(): void {
+        const container = document.getElementById('chordChart');
+        if (!container) return;
+
+        const positionRoots = getPositionRootsForKey(this.currentKey);
+        const rootNote = positionRoots[this.currentPosition];
+
+        // Major positions: 1 (Ionian), 2 (Mixolydian), 7 (Lydian), 8, 9
+        const majorPositions = new Set([1, 2, 7, 8, 9]);
+        const isMajor = majorPositions.has(this.currentPosition);
+        const scaleType = isMajor ? 'major' : 'minor';
+        const scaleNotes = getScaleNoteNames(rootNote, scaleType);
+
+        const keyLetter = rootNote.replace(/[0-9]/g, '');
+        const headline = isMajor
+            ? `${keyLetter} major / ${keyLetter} Dur`
+            : `${keyLetter} minor / ${keyLetter} Moll`;
+
+        container.style.display = '';
+
+        const romanBase = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+        const chords = Array.from({length: 7}, (_, i) => {
+            const {quality, isMinor} = getDiatonicChordQuality(scaleNotes, i);
+            return {
+                root:   scaleNotes[i],
+                third:  scaleNotes[(i + 2) % 7],
+                fifth:  scaleNotes[(i + 4) % 7],
+                sev:    scaleNotes[(i + 6) % 7],
+                name:   scaleNotes[i] + quality,
+                roman:  isMinor ? romanBase[i].toLowerCase() : romanBase[i],
+            };
+        });
+
+        // 4 tone rows (7th → root), then degree#, chord name, roman numeral
+        const toneRows = [
+            { label: '7', key: 'sev'   as const },
+            { label: '5', key: 'fifth' as const },
+            { label: '3', key: 'third' as const },
+            { label: '1', key: 'root'  as const, isRoot: true },
+        ];
+
+        const cells: string[] = [];
+        toneRows.forEach(row => {
+            const rootCls = row.isRoot ? ' cc-root' : '';
+            cells.push(`<div class="cc-label${rootCls}">${row.label}</div>`);
+            chords.forEach(c => cells.push(`<div class="cc-cell${rootCls}">${c[row.key]}</div>`));
+        });
+
+        // Degree numbers
+        cells.push('<div class="cc-sub"></div>');
+        chords.forEach((_, i) => cells.push(`<div class="cc-sub cc-deg">${i + 1}</div>`));
+
+        // Chord names
+        cells.push('<div class="cc-sub"></div>');
+        chords.forEach(c => cells.push(`<div class="cc-sub cc-chord">${c.name}</div>`));
+
+        // Roman numerals
+        cells.push('<div class="cc-sub"></div>');
+        chords.forEach(c => cells.push(`<div class="cc-sub cc-roman">${c.roman}</div>`));
+
+        container.innerHTML = `<h3 class="cc-headline">${headline}</h3><div class="cc-grid">${cells.join('')}</div>`;
+    }
+
+    private updateSheetMusic(): void {
+        const container = document.getElementById('sheetMusicContainer');
+        if (!container) return;
+
+        const notes = this.getScaleNotes();
+
+        const LS = 16;                          // line spacing (px between staff lines)
+        const staffTop = 52;                    // y of top staff line
+        const bottomLineY = staffTop + 4 * LS; // y of bottom staff line (E4)
+        const noteRx = 9, noteRy = 6;          // whole note radii
+        const clefWidth = 62;
+        const noteStartX = clefWidth + 10;
+        const noteSpacing = 46;
+        const totalWidth = notes.length > 0
+            ? noteStartX + notes.length * noteSpacing + 20
+            : noteStartX + 40;
+        const svgHeight = bottomLineY + 50;     // room for note names below
+
+        const letterIndex: {[k: string]: number} = {C:0, D:1, E:2, F:3, G:4, A:5, B:6};
+
+        const staffPos = (noteName: string): number => {
+            const letter = noteName[0];
+            const octave = parseInt(noteName.replace(/[^0-9]/g, ''));
+            return (octave - 4) * 7 + (letterIndex[letter] ?? 0) - 2; // 0 = E4
+        };
+        const noteY = (sp: number) => bottomLineY - sp * (LS / 2);
+
+        const parts: string[] = [];
+
+        // Staff lines
+        for (let i = 0; i <= 4; i++) {
+            const y = staffTop + i * LS;
+            parts.push(`<line x1="8" y1="${y}" x2="${totalWidth - 8}" y2="${y}" stroke="black" stroke-width="1.2"/>`);
+        }
+
+        // Treble clef — baseline ~1 LS below bottom staff line so the tail hangs below
+        parts.push(`<text x="10" y="${bottomLineY + LS * 0.7}" font-size="${LS * 4.9}" font-family="serif" fill="black" style="user-select:none">&#x1D11E;</text>`);
+
+        // Notes
+        notes.forEach((note, i) => {
+            const x = noteStartX + i * noteSpacing;
+            const sp = staffPos(note.note);
+            const y = noteY(sp);
+
+            // Ledger lines above staff (positions 10, 12, …)
+            for (let lp = 10; lp <= sp; lp += 2) {
+                const ly = noteY(lp);
+                parts.push(`<line x1="${x - noteRx - 4}" y1="${ly}" x2="${x + noteRx + 4}" y2="${ly}" stroke="black" stroke-width="1.2"/>`);
+            }
+            // Ledger lines below staff (positions -2, -4, …)
+            for (let lp = -2; lp >= sp; lp -= 2) {
+                const ly = noteY(lp);
+                parts.push(`<line x1="${x - noteRx - 4}" y1="${ly}" x2="${x + noteRx + 4}" y2="${ly}" stroke="black" stroke-width="1.2"/>`);
+            }
+
+            // Whole note: black oval with rotated white cutout (wrapped for highlighting)
+            const bendSuffix = note.bend ? '-bend' : '';
+            const sheetId = `sheet-note-${note.note}-${note.type}${bendSuffix}`;
+            parts.push(`<g id="${sheetId}">`);
+            parts.push(`<ellipse class="sheet-oval" cx="${x}" cy="${y}" rx="${noteRx}" ry="${noteRy}" fill="black"/>`);
+            parts.push(`<ellipse cx="${x}" cy="${y}" rx="${noteRx * 0.55}" ry="${noteRy * 0.55}" fill="white" transform="rotate(-25 ${x} ${y})"/>`);
+            parts.push(`</g>`);
+
+            // Accidental to the left of the note
+            const acc = note.note.includes('♯') ? '♯' : note.note.includes('♭') ? '♭' : '';
+            if (acc) {
+                parts.push(`<text x="${x - noteRx - 3}" y="${y + 5}" font-size="${LS}" font-family="serif" fill="black" text-anchor="end">${acc}</text>`);
+            }
+
+            // Note name below staff
+            const name = note.note.replace(/[0-9]/g, '');
+            parts.push(`<text x="${x}" y="${bottomLineY + 35}" font-size="13" font-family="sans-serif" fill="#444" text-anchor="middle">${name}</text>`);
+        });
+
+        container.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${svgHeight}">${parts.join('')}</svg>`;
     }
 
     private updateStatus(message: string): void {
@@ -1273,6 +1461,8 @@ class HarmonicaUI {
         if (this.playingNoteId) {
             const prev = document.getElementById(this.playingNoteId);
             if (prev) prev.style.background = prev.dataset.origBackground ?? '';
+            const prevOval = document.querySelector(`#sheet-${this.playingNoteId} .sheet-oval`);
+            if (prevOval) prevOval.setAttribute('fill', 'black');
         }
         this.playingNoteId = noteId;
         if (noteId) {
@@ -1281,6 +1471,8 @@ class HarmonicaUI {
                 el.dataset.origBackground = el.style.background;
                 el.style.background = 'rgba(255, 240, 100, 0.85)';
             }
+            const oval = document.querySelector(`#sheet-${noteId} .sheet-oval`);
+            if (oval) oval.setAttribute('fill', 'rgb(255, 215, 0)');
         }
     }
 

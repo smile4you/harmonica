@@ -436,6 +436,54 @@
             background: var(--color-active) !important;
             border-color: var(--color-active-border) !important;
         }
+
+        /* Chord chart */
+        .cc-headline {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .cc-grid {
+            display: grid;
+            grid-template-columns: 28px repeat(7, 1fr);
+            max-width: 680px;
+            margin: 0 auto;
+            border-top: 1.5px solid #bbb;
+            border-bottom: 1.5px solid #bbb;
+            font-family: sans-serif;
+        }
+        .cc-cell {
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px 2px;
+            border-left: 1px solid #d0d0d0;
+        }
+        .cc-label {
+            font-size: 13px;
+            color: #aaa;
+            text-align: right;
+            padding: 10px 5px 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        .cc-root {
+            background: #efefef;
+        }
+        .cc-sub {
+            font-size: 13px;
+            text-align: center;
+            padding: 5px 2px;
+            border-left: 1px solid #d0d0d0;
+            color: #888;
+        }
+        .cc-sub:first-child { border-left: none; }
+        .cc-deg  { color: #aaa; }
+        .cc-chord{ color: #333; font-size: 14px; font-weight: 500; }
+        .cc-roman{ font-style: italic; color: #555; }
     </style>
 </head>
 
@@ -588,97 +636,94 @@
                     <div class="holes-container" id="harmonicaHoles"></div>
                 </div>
             </div>
+            <div class="controls">
+                <label style="margin-left: 20px; font-size: 16px;">
+                    Key:
+                    <select id="keySelect"
+                        style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
+                        <option value="LF">Low F</option>
+                        <option value="LD">Low D</option>
+                        <option value="C" selected>C</option>
+                        <option value="Db">D♭/C♯</option>
+                        <option value="D">D</option>
+                        <option value="Eb">E♭/D♯</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="Gb">G♭/F♯</option>
+                        <option value="G">G</option>
+                        <option value="Ab">A♭/G♯</option>
+                        <option value="A">A</option>
+                        <option value="Bb">B♭/A♯</option>
+                        <option value="B">B</option>
+                    </select>
+                </label>
+
+                <label style="margin-left: 20px; font-size: 16px; cursor: pointer;">
+                    <input type="checkbox" id="intervalToggle" style="cursor: pointer; margin-right: 8px;">
+                    Show Intervals
+                </label>
+                <label style="margin-left: 20px; font-size: 16px; cursor: pointer;">
+                    <input type="checkbox" id="overblowToggle" style="cursor: pointer; margin-right: 8px;">
+                    Show Overblows
+                </label>
+            </div>
+            <div class="controls">
+                <label style="margin-left: 20px; font-size: 16px;">
+                    Position:
+                    <select id="positionSelect"
+                        style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
+                        <option value="1">1st (C - Straight)</option>
+                        <option value="2">2nd (G - Cross)</option>
+                        <option value="3">3rd (D - Dorian)</option>
+                        <option value="4">4th (D - Major)</option>
+                        <option value="5">5th (A - Minor)</option>
+                        <option value="6">6th (E - Minor)</option>
+                        <option value="7">7th (B - Locrian)</option>
+                        <option value="8">8th (F♯ - Lydian)</option>
+                        <option value="9">9th (D♭ - Phrygian)</option>
+                        <option value="10">10th (A♭)</option>
+                        <option value="11">11th (E♭)</option>
+                        <option value="12">12th (B♭)</option>
+                    </select>
+                </label>
+
+                <label style="margin-left: 20px; font-size: 16px;">
+                    Scale:
+                    <select id="scaleSelect"
+                        style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
+                        <option value="chromatic">Chromatic</option>
+                        <option value="major">Major/Ionian</option>
+                        <option value="dorian">Dorian</option>
+                        <option value="phrygian">Phrygian</option>
+                        <option value="lydian">Lydian</option>
+                        <option value="mixolydian">Mixolydian</option>
+                        <option value="minor">Natural Minor/Aeolian</option>
+                        <option value="locrian">Locrian</option>
+                        <option value="harmonic-minor">Harmonic Minor</option>
+                        <option value="melodic-minor-asc">Melodic Minor (ascending)</option>
+                        <option value="melodic-minor-desc">Melodic Minor (descending)</option>
+                        <option value="blues">Blues</option>
+                        <option value="gypsy-minor">Gypsy Minor</option>
+                        <option value="whole-tone">Whole-Tone</option>
+                        <option value="major-pentatonic">Major Pentatonic</option>
+                        <option value="minor-pentatonic">Minor Pentatonic</option>
+                    </select>
+                </label>
+                <label style="margin-left: 20px; font-size: 16px;">
+                    Display:
+                    <select id="pianoOctaveSelect"
+                        style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
+                        <option value="all">All Octaves</option>
+                        <option value="4">First Octave</option>
+                        <option value="5">Second Octave</option>
+                        <option value="6">Third Octave</option>
+                    </select>
+                </label>
+            </div>
             <div class="piano-wrapper">
                 <div class="piano-keyboard" id="pianoKeyboard"></div>
             </div>
-        </div>
-
-
-
-
-        <div class="controls">
-            <label style="margin-left: 20px; font-size: 16px;">
-                Key:
-                <select id="keySelect"
-                    style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
-                    <option value="LF">Low F</option>
-                    <option value="LD">Low D</option>
-                    <option value="C" selected>C</option>
-                    <option value="Db">D♭/C♯</option>
-                    <option value="D">D</option>
-                    <option value="Eb">E♭/D♯</option>
-                    <option value="E">E</option>
-                    <option value="F">F</option>
-                    <option value="Gb">G♭/F♯</option>
-                    <option value="G">G</option>
-                    <option value="Ab">A♭/G♯</option>
-                    <option value="A">A</option>
-                    <option value="Bb">B♭/A♯</option>
-                    <option value="B">B</option>
-                </select>
-            </label>
-
-            <label style="margin-left: 20px; font-size: 16px; cursor: pointer;">
-                <input type="checkbox" id="intervalToggle" style="cursor: pointer; margin-right: 8px;">
-                Show Intervals
-            </label>
-            <label style="margin-left: 20px; font-size: 16px; cursor: pointer;">
-                <input type="checkbox" id="overblowToggle" style="cursor: pointer; margin-right: 8px;">
-                Show Overblows
-            </label>
-        </div>
-        <div class="controls">
-            <label style="margin-left: 20px; font-size: 16px;">
-                Position:
-                <select id="positionSelect"
-                    style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
-                    <option value="1">1st (C - Straight)</option>
-                    <option value="2">2nd (G - Cross)</option>
-                    <option value="3">3rd (D - Dorian)</option>
-                    <option value="4">4th (D - Major)</option>
-                    <option value="5">5th (A - Minor)</option>
-                    <option value="6">6th (E - Minor)</option>
-                    <option value="7">7th (B - Locrian)</option>
-                    <option value="8">8th (F♯ - Lydian)</option>
-                    <option value="9">9th (D♭ - Phrygian)</option>
-                    <option value="10">10th (A♭)</option>
-                    <option value="11">11th (E♭)</option>
-                    <option value="12">12th (B♭)</option>
-                </select>
-            </label>
-
-            <label style="margin-left: 20px; font-size: 16px;">
-                Scale:
-                <select id="scaleSelect"
-                    style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
-                    <option value="chromatic">Chromatic</option>
-                    <option value="major">Major/Ionian</option>
-                    <option value="dorian">Dorian</option>
-                    <option value="phrygian">Phrygian</option>
-                    <option value="lydian">Lydian</option>
-                    <option value="mixolydian">Mixolydian</option>
-                    <option value="minor">Natural Minor/Aeolian</option>
-                    <option value="locrian">Locrian</option>
-                    <option value="harmonic-minor">Harmonic Minor</option>
-                    <option value="melodic-minor-asc">Melodic Minor (ascending)</option>
-                    <option value="melodic-minor-desc">Melodic Minor (descending)</option>
-                    <option value="blues">Blues</option>
-                    <option value="gypsy-minor">Gypsy Minor</option>
-                    <option value="whole-tone">Whole-Tone</option>
-                    <option value="major-pentatonic">Major Pentatonic</option>
-                    <option value="minor-pentatonic">Minor Pentatonic</option>
-                </select>
-            </label>
-            <label style="margin-left: 20px; font-size: 16px;">
-                Display:
-                <select id="pianoOctaveSelect"
-                    style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
-                    <option value="all">All Octaves</option>
-                    <option value="4">First Octave</option>
-                    <option value="5">Second Octave</option>
-                    <option value="6">Third Octave</option>
-                </select>
-            </label>
+            <div id="sheetMusicContainer" style="overflow-x: auto; padding: 8px 16px; min-height: 120px;"></div>
         </div>
         <div class="controls" style="justify-content: center; gap: 20px; margin-top: 4px;">
             <button id="playScaleBtn"
@@ -692,10 +737,11 @@
                 <span id="noteLengthDisplay">1.0s</span>
             </label>
         </div>
+        <div id="chordChart" style="padding: 12px 16px; overflow-x: auto;"></div>
     </div>
 
 
-    <script type="module" src="harmonica.js?v=11"></script>
+    <script type="module" src="harmonica.js?v=16"></script>
 </body>
 
 </html>
