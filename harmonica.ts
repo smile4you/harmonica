@@ -512,6 +512,10 @@ class HarmonicaUI {
     private playbackAudioContext: AudioContext | null = null;
     private currentOscillator: OscillatorNode | null = null;
     private currentGain: GainNode | null = null;
+    private noteDuration: number = 1.0;
+    private isPlaying: boolean = false;
+    private playbackTimeouts: number[] = [];
+    private playingNoteId: string | null = null;
 
     constructor() {
         this.pitchDetector = new PitchDetector(
@@ -800,6 +804,7 @@ class HarmonicaUI {
             keySelect.value = this.currentKey;
 
             keySelect.addEventListener('change', () => {
+                this.stopScale();
                 this.currentKey = keySelect.value;
                 this.transposeHarmonica();
                 this.updateIntervalsForPosition();
@@ -814,6 +819,7 @@ class HarmonicaUI {
             positionSelect.value = this.currentPosition.toString();
 
             positionSelect.addEventListener('change', () => {
+                this.stopScale();
                 this.currentPosition = parseInt(positionSelect.value);
                 this.updateIntervalsForPosition();
                 this.updateNoteLabels();
@@ -827,6 +833,7 @@ class HarmonicaUI {
             scaleSelect.value = this.currentScale;
 
             scaleSelect.addEventListener('change', () => {
+                this.stopScale();
                 this.currentScale = scaleSelect.value;
                 this.updateIntervalsForPosition();
                 this.updateNoteLabels();
@@ -838,9 +845,27 @@ class HarmonicaUI {
         if (pianoOctaveSelect) {
             pianoOctaveSelect.value = this.pianoOctaveFilter === null ? 'all' : String(this.pianoOctaveFilter);
             pianoOctaveSelect.addEventListener('change', () => {
+                this.stopScale();
                 const val = pianoOctaveSelect.value;
                 this.pianoOctaveFilter = val === 'all' ? null : parseInt(val);
                 this.updateNoteLabels();
+                this.saveSettings();
+            });
+        }
+
+        // Play scale button
+        const playScaleBtn = document.getElementById('playScaleBtn');
+        if (playScaleBtn) playScaleBtn.addEventListener('click', () => this.playScale());
+
+        // Note length slider
+        const noteLengthSlider = document.getElementById('noteLengthSlider') as HTMLInputElement;
+        const noteLengthDisplay = document.getElementById('noteLengthDisplay');
+        if (noteLengthSlider) {
+            noteLengthSlider.value = String(this.noteDuration);
+            if (noteLengthDisplay) noteLengthDisplay.textContent = `${this.noteDuration.toFixed(1)}s`;
+            noteLengthSlider.addEventListener('input', () => {
+                this.noteDuration = parseFloat(noteLengthSlider.value);
+                if (noteLengthDisplay) noteLengthDisplay.textContent = `${this.noteDuration.toFixed(1)}s`;
                 this.saveSettings();
             });
         }
@@ -1074,6 +1099,7 @@ class HarmonicaUI {
                 this.currentKey = settings.currentKey ?? 'C';
                 this.currentPosition = settings.currentPosition ?? 1;
                 this.currentScale = settings.currentScale ?? 'chromatic';
+                this.noteDuration = settings.noteDuration ?? 1.0;
             }
         } catch (error) {
             console.error('Error loading settings:', error);
@@ -1088,7 +1114,8 @@ class HarmonicaUI {
                 pianoOctaveFilter: this.pianoOctaveFilter,
                 currentKey: this.currentKey,
                 currentPosition: this.currentPosition,
-                currentScale: this.currentScale
+                currentScale: this.currentScale,
+                noteDuration: this.noteDuration
             };
             localStorage.setItem('harmonicaSettings', JSON.stringify(settings));
         } catch (error) {
@@ -1181,6 +1208,85 @@ class HarmonicaUI {
             this.currentOscillator = null;
             this.currentGain = null;
         }
+    }
+
+    private getScaleNotes(): HarmonicaNote[] {
+        const positionRoots = getPositionRootsForKey(this.currentKey);
+        const rootNote = positionRoots[this.currentPosition];
+        let lowFreq = 0, highFreq = Infinity;
+        if (this.pianoOctaveFilter !== null) {
+            const rootOctave = parseInt(rootNote.replace(/[^0-9]/g, ''));
+            const rootFreq = computeNoteFrequency(rootNote);
+            const offset = this.pianoOctaveFilter - rootOctave;
+            lowFreq = rootFreq * Math.pow(2, offset);
+            highFreq = lowFreq * 2;
+        }
+        return harmonicaLayout
+            .filter(n => {
+                // Skip overblows/overdraws if not visible
+                if ((n.bend === 'ob' || n.bend === 'od') && !this.showOverblows) return false;
+                const { inScale } = getNoteInterval(n.note, rootNote, this.currentScale);
+                if (!inScale || this.currentScale === 'chromatic') return false;
+                const octaveMatch = this.pianoOctaveFilter === null ||
+                    (n.frequency >= lowFreq * 0.999 && n.frequency <= highFreq * 1.001);
+                return octaveMatch;
+            })
+            .sort((a, b) => a.frequency - b.frequency)
+            .filter((n, i, arr) => i === 0 || Math.abs(n.frequency - arr[i - 1].frequency) > 1);
+    }
+
+    private playScale(): void {
+        if (this.isPlaying) { this.stopScale(); return; }
+        const notes = this.getScaleNotes();
+        if (notes.length === 0) return;
+        const sequence = [...notes, ...notes.slice(0, -1).reverse()];
+        const stepMs = this.noteDuration * 1000;
+        this.isPlaying = true;
+        this.updatePlayButton();
+        sequence.forEach((note, i) => {
+            const t = window.setTimeout(() => {
+                const bendSuffix = note.bend ? '-bend' : '';
+                this.highlightPlayingNote(`note-${note.note}-${note.type}${bendSuffix}`);
+                this.playNote(note.frequency);
+            }, i * stepMs);
+            this.playbackTimeouts.push(t);
+        });
+        const end = window.setTimeout(() => {
+            this.highlightPlayingNote(null);
+            this.stopNote();
+            this.isPlaying = false;
+            this.updatePlayButton();
+        }, sequence.length * stepMs);
+        this.playbackTimeouts.push(end);
+    }
+
+    private stopScale(): void {
+        this.playbackTimeouts.forEach(clearTimeout);
+        this.playbackTimeouts = [];
+        this.highlightPlayingNote(null);
+        this.stopNote();
+        this.isPlaying = false;
+        this.updatePlayButton();
+    }
+
+    private highlightPlayingNote(noteId: string | null): void {
+        if (this.playingNoteId) {
+            const prev = document.getElementById(this.playingNoteId);
+            if (prev) prev.style.background = prev.dataset.origBackground ?? '';
+        }
+        this.playingNoteId = noteId;
+        if (noteId) {
+            const el = document.getElementById(noteId);
+            if (el) {
+                el.dataset.origBackground = el.style.background;
+                el.style.background = 'rgba(255, 240, 100, 0.85)';
+            }
+        }
+    }
+
+    private updatePlayButton(): void {
+        const btn = document.getElementById('playScaleBtn') as HTMLButtonElement | null;
+        if (btn) btn.textContent = this.isPlaying ? '■ Stop' : '▶ Play Scale';
     }
 }
 

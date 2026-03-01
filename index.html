@@ -680,10 +680,22 @@
                 </select>
             </label>
         </div>
+        <div class="controls" style="justify-content: center; gap: 20px; margin-top: 4px;">
+            <button id="playScaleBtn"
+                style="padding: 6px 18px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: #f0f0f0;">
+                ▶ Play Scale
+            </button>
+            <label style="font-size: 16px;">
+                Note length:
+                <input type="range" id="noteLengthSlider" min="0.5" max="4" step="0.1" value="1"
+                    style="vertical-align: middle; margin: 0 8px; width: 120px;">
+                <span id="noteLengthDisplay">1.0s</span>
+            </label>
+        </div>
     </div>
 
 
-    <script type="module" src="harmonica.js?v=7"></script>
+    <script type="module" src="harmonica.js?v=11"></script>
 </body>
 
 </html>
