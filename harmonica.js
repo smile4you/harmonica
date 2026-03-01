@@ -504,6 +504,10 @@ class HarmonicaUI {
         this.isPlaying = false;
         this.playbackTimeouts = [];
         this.playingNoteId = null;
+        this.isDroning = false;
+        this.droneOscillators = [];
+        this.droneNoiseSource = null;
+        this.droneMasterGain = null;
         this.pitchDetector = new PitchDetector(this.onPitchDetected.bind(this), this.onNoSound.bind(this));
         this.loadSettings();
         // If a non-C key was loaded, transpose the layout before initializing
@@ -691,11 +695,27 @@ class HarmonicaUI {
     updatePianoLabels() {
         const positionRoots = getPositionRootsForKey(this.currentKey);
         const rootNote = positionRoots[this.currentPosition];
+        // Use the same frequency-based span as updateNoteLabels / getScaleNotes
+        let lowFreq = 0, highFreq = Infinity;
+        if (this.pianoOctaveFilter !== null) {
+            const rootOctave = parseInt(rootNote.replace(/[^0-9]/g, ''));
+            const rootFreq = computeNoteFrequency(rootNote);
+            const offset = this.pianoOctaveFilter - rootOctave;
+            lowFreq = rootFreq * Math.pow(2, offset);
+            highFreq = lowFreq * 2;
+        }
+        const semitonesFromC = {
+            'C': 0, 'D♭': 1, 'D': 2, 'E♭': 3, 'E': 4,
+            'F': 5, 'G♭': 6, 'G': 7, 'A♭': 8, 'A': 9, 'B♭': 10, 'B': 11
+        };
         document.querySelectorAll('.piano-key').forEach(key => {
+            var _a;
             const note = key.dataset.note;
             const octave = parseInt(key.dataset.octave);
             const { interval, inScale } = getNoteInterval(note, rootNote, this.currentScale);
-            const octaveMatch = this.pianoOctaveFilter === null || octave === this.pianoOctaveFilter;
+            const keyFreq = 440 * Math.pow(2, ((octave - 4) * 12 + ((_a = semitonesFromC[note]) !== null && _a !== void 0 ? _a : 0) - 9) / 12);
+            const octaveMatch = this.pianoOctaveFilter === null ||
+                (keyFreq >= lowFreq * 0.999 && keyFreq <= highFreq * 1.001);
             key.classList.remove('in-scale', 'scale-root', 'out-of-scale');
             if (octaveMatch && interval === '1') {
                 key.classList.add('scale-root');
@@ -752,6 +772,7 @@ class HarmonicaUI {
                 this.updateIntervalsForPosition();
                 this.updateNoteLabels();
                 this.saveSettings();
+                this.restartDroneIfActive();
             });
         }
         const positionSelect = document.getElementById('positionSelect');
@@ -764,6 +785,7 @@ class HarmonicaUI {
                 this.updateIntervalsForPosition();
                 this.updateNoteLabels();
                 this.saveSettings();
+                this.restartDroneIfActive();
             });
         }
         const scaleSelect = document.getElementById('scaleSelect');
@@ -793,6 +815,15 @@ class HarmonicaUI {
         const playScaleBtn = document.getElementById('playScaleBtn');
         if (playScaleBtn)
             playScaleBtn.addEventListener('click', () => this.playScale());
+        // Drone button
+        const droneBtn = document.getElementById('droneBtn');
+        if (droneBtn)
+            droneBtn.addEventListener('click', () => {
+                if (this.isDroning)
+                    this.stopDrone();
+                else
+                    this.startDrone();
+            });
         // Note length slider
         const noteLengthSlider = document.getElementById('noteLengthSlider');
         const noteLengthDisplay = document.getElementById('noteLengthDisplay');
@@ -1319,6 +1350,111 @@ class HarmonicaUI {
         const btn = document.getElementById('playScaleBtn');
         if (btn)
             btn.textContent = this.isPlaying ? '■ Stop' : '▶ Play Scale';
+    }
+    startDrone() {
+        if (!this.playbackAudioContext) {
+            this.playbackAudioContext = new AudioContext();
+        }
+        const ctx = this.playbackAudioContext;
+        const positionRoots = getPositionRootsForKey(this.currentKey);
+        const rootNote = positionRoots[this.currentPosition];
+        let freq = computeNoteFrequency(rootNote);
+        const keyOffset = harmonicaKeyOffsets[this.currentKey] || 0;
+        if (keyOffset >= 7)
+            freq /= 2;
+        this.droneMasterGain = ctx.createGain();
+        this.droneMasterGain.gain.setValueAtTime(0, ctx.currentTime);
+        this.droneMasterGain.connect(ctx.destination);
+        // Tremolo LFO (~5.2 Hz amplitude modulation)
+        const tremoloLFO = ctx.createOscillator();
+        tremoloLFO.frequency.value = 5.2;
+        const tremoloDepth = ctx.createGain();
+        tremoloDepth.gain.value = 0.06;
+        tremoloLFO.connect(tremoloDepth);
+        tremoloDepth.connect(this.droneMasterGain.gain);
+        tremoloLFO.start();
+        // Vibrato LFO (~5.5 Hz pitch modulation, ±0.4%)
+        const vibratoLFO = ctx.createOscillator();
+        vibratoLFO.frequency.value = 5.5;
+        const vibratoDepth = ctx.createGain();
+        vibratoDepth.gain.value = freq * 0.004;
+        vibratoLFO.connect(vibratoDepth);
+        vibratoLFO.start();
+        // Harmonics (1f–6f) with decreasing amplitudes
+        const harmonicFreqs = [1, 2, 3, 4, 5, 6];
+        const amplitudes = [0.18, 0.10, 0.06, 0.04, 0.025, 0.015];
+        this.droneOscillators = [tremoloLFO, vibratoLFO];
+        for (let i = 0; i < harmonicFreqs.length; i++) {
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = freq * harmonicFreqs[i];
+            const oscGain = ctx.createGain();
+            oscGain.gain.value = amplitudes[i];
+            osc.connect(oscGain);
+            oscGain.connect(this.droneMasterGain);
+            vibratoDepth.connect(osc.frequency);
+            osc.start();
+            this.droneOscillators.push(osc);
+        }
+        // Breath noise: bandpass-filtered white noise
+        const bufferSize = ctx.sampleRate * 2;
+        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++)
+            data[i] = Math.random() * 2 - 1;
+        const noise = ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+        noise.loop = true;
+        const noiseFilter = ctx.createBiquadFilter();
+        noiseFilter.type = 'bandpass';
+        noiseFilter.frequency.value = freq;
+        noiseFilter.Q.value = 3;
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.value = 0.012;
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(this.droneMasterGain);
+        noise.start();
+        this.droneNoiseSource = noise;
+        // Fade in
+        this.droneMasterGain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.4);
+        this.isDroning = true;
+        this.updateDroneButton();
+    }
+    stopDrone() {
+        if (!this.isDroning)
+            return;
+        const ctx = this.playbackAudioContext;
+        const masterGain = this.droneMasterGain;
+        const oscs = this.droneOscillators;
+        const noise = this.droneNoiseSource;
+        // Clear refs immediately so restartDroneIfActive can re-enter
+        this.droneOscillators = [];
+        this.droneNoiseSource = null;
+        this.droneMasterGain = null;
+        this.isDroning = false;
+        this.updateDroneButton();
+        // Fade out then stop
+        if (ctx && masterGain) {
+            const now = ctx.currentTime;
+            masterGain.gain.cancelScheduledValues(now);
+            masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+            masterGain.gain.linearRampToValueAtTime(0, now + 0.25);
+            oscs.forEach(osc => osc.stop(now + 0.3));
+            if (noise)
+                noise.stop(now + 0.3);
+        }
+    }
+    updateDroneButton() {
+        const btn = document.getElementById('droneBtn');
+        if (btn)
+            btn.textContent = this.isDroning ? '■ Stop Drone' : '♩ Drone';
+    }
+    restartDroneIfActive() {
+        if (!this.isDroning)
+            return;
+        this.stopDrone();
+        window.setTimeout(() => this.startDrone(), 50);
     }
 }
 // Initialize the application
