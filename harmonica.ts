@@ -258,6 +258,18 @@ function getNoteInterval(note: string, rootNote: string = 'C', scaleType: string
     }
 }
 
+// Compute frequency of a note name with octave (e.g. 'G4', 'D♭5')
+function computeNoteFrequency(noteName: string): number {
+    const noteWithoutOctave = noteName.replace(/[0-9]/g, '');
+    const octave = parseInt(noteName.replace(/[^0-9]/g, ''));
+    const normalized = enharmonicMap[noteWithoutOctave] || noteWithoutOctave;
+    const semisFromC: { [key: string]: number } = {
+        'C': 0, 'C♯': 1, 'D': 2, 'D♯': 3, 'E': 4, 'F': 5,
+        'F♯': 6, 'G': 7, 'G♯': 8, 'A': 9, 'A♯': 10, 'B': 11
+    };
+    return 440 * Math.pow(2, ((octave - 4) * 12 + (semisFromC[normalized] || 0) - 9) / 12);
+}
+
 // Working harmonica layout (will be transposed based on key)
 let harmonicaLayout: HarmonicaNote[] = JSON.parse(JSON.stringify(baseHarmonicaLayout));
 
@@ -1003,6 +1015,20 @@ class HarmonicaUI {
     }
 
     private updateNoteLabels(): void {
+        const positionRoots = getPositionRootsForKey(this.currentKey);
+        const rootNote = positionRoots[this.currentPosition];
+
+        // Frequency-based octave span: from root in selected octave to root one octave higher.
+        // e.g. Blues 2nd position root = G4. "First Octave" → [G4_freq, G5_freq).
+        let lowFreq = 0, highFreq = Infinity;
+        if (this.pianoOctaveFilter !== null) {
+            const rootOctave = parseInt(rootNote.replace(/[^0-9]/g, ''));
+            const rootFreq = computeNoteFrequency(rootNote);
+            const offset = this.pianoOctaveFilter - rootOctave;
+            lowFreq = rootFreq * Math.pow(2, offset);
+            highFreq = lowFreq * 2;
+        }
+
         harmonicaLayout.forEach(harmonicaNote => {
             const bendSuffix = harmonicaNote.bend ? '-bend' : '';
             const noteElement = document.getElementById(`note-${harmonicaNote.note}-${harmonicaNote.type}${bendSuffix}`);
@@ -1016,13 +1042,10 @@ class HarmonicaUI {
                     noteElement.appendChild(deviationElement);
                 }
 
-                // Apply scale highlighting after content update
-                const positionRoots = getPositionRootsForKey(this.currentKey);
-                const rootNote = positionRoots[this.currentPosition];
+                // Apply scale highlighting
                 const { interval, inScale } = getNoteInterval(harmonicaNote.note, rootNote, this.currentScale);
-
-                const octaveNum = parseInt(harmonicaNote.note.replace(/[^0-9]/g, ''));
-                const octaveMatch = this.pianoOctaveFilter === null || octaveNum === this.pianoOctaveFilter;
+                const octaveMatch = this.pianoOctaveFilter === null ||
+                    (harmonicaNote.frequency >= lowFreq * 0.999 && harmonicaNote.frequency <= highFreq * 1.001);
 
                 noteElement.classList.remove('scale-root');
                 if (interval === '1' && octaveMatch) noteElement.classList.add('scale-root');
