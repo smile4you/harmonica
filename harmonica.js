@@ -422,8 +422,10 @@ class PitchDetector {
 class HarmonicaUI {
     constructor() {
         this.activeNotes = new Set();
+        this.activePianoNoteId = null;
         this.showIntervals = false;
         this.showOverblows = false;
+        this.pianoOctaveFilter = null; // null = all octaves
         this.currentPosition = 1;
         this.currentScale = 'chromatic';
         this.currentKey = 'C';
@@ -440,6 +442,8 @@ class HarmonicaUI {
         // Update intervals based on loaded position and scale
         this.updateIntervalsForPosition();
         this.initializeHarmonica();
+        this.initializePiano();
+        this.updatePianoLabels();
         this.setupEventListeners();
     }
     initializeHarmonica() {
@@ -538,6 +542,97 @@ class HarmonicaUI {
             container.appendChild(holeDiv);
         });
     }
+    initializePiano() {
+        const container = document.getElementById('pianoKeyboard');
+        if (!container)
+            return;
+        container.innerHTML = '';
+        const WW = 30; // white key width
+        const WH = 120; // white key height
+        const BW = 18; // black key width
+        const BH = 74; // black key height
+        // Chromatic layout per octave: note name, whether black, and for black keys
+        // the number of white keys to the left within the octave (for positioning)
+        const octaveLayout = [
+            { note: 'C', black: false },
+            { note: 'D♭', black: true, whitesLeft: 1 },
+            { note: 'D', black: false },
+            { note: 'E♭', black: true, whitesLeft: 2 },
+            { note: 'E', black: false },
+            { note: 'F', black: false },
+            { note: 'G♭', black: true, whitesLeft: 4 },
+            { note: 'G', black: false },
+            { note: 'A♭', black: true, whitesLeft: 5 },
+            { note: 'A', black: false },
+            { note: 'B♭', black: true, whitesLeft: 6 },
+            { note: 'B', black: false },
+        ];
+        const sharpNames = {
+            'D♭': 'C♯', 'E♭': 'D♯', 'G♭': 'F♯', 'A♭': 'G♯', 'B♭': 'A♯'
+        };
+        // Semitones above C for each note name
+        const semitonesFromC = {
+            'C': 0, 'D♭': 1, 'D': 2, 'E♭': 3, 'E': 4,
+            'F': 5, 'G♭': 6, 'G': 7, 'A♭': 8, 'A': 9, 'B♭': 10, 'B': 11
+        };
+        // Frequency from note name + octave (A4 = 440 Hz reference)
+        const noteFrequency = (note, octave) => {
+            const semisFromA4 = (octave - 4) * 12 + semitonesFromC[note] - 9;
+            return 440 * Math.pow(2, semisFromA4 / 12);
+        };
+        let whiteCount = 0;
+        for (let octave = 4; octave <= 7; octave++) {
+            const octaveWhiteStart = whiteCount;
+            const layout = octave === 7 ? octaveLayout.slice(0, 1) : octaveLayout;
+            layout.forEach(({ note, black, whitesLeft }) => {
+                const key = document.createElement('div');
+                key.className = `piano-key ${black ? 'black' : 'white'}`;
+                key.id = `piano-${note}${octave}`;
+                key.dataset.note = note;
+                key.dataset.octave = String(octave);
+                if (black) {
+                    const left = (octaveWhiteStart + whitesLeft) * WW - BW / 2;
+                    key.style.left = `${left}px`;
+                    key.style.width = `${BW}px`;
+                    key.style.height = `${BH}px`;
+                    const span = document.createElement('span');
+                    span.textContent = `${sharpNames[note]}\n${note}`;
+                    span.style.whiteSpace = 'pre-line';
+                    key.appendChild(span);
+                }
+                else {
+                    key.style.left = `${whiteCount * WW}px`;
+                    key.style.width = `${WW - 1}px`;
+                    key.style.height = `${WH}px`;
+                    const span = document.createElement('span');
+                    span.textContent = note;
+                    key.appendChild(span);
+                    whiteCount++;
+                }
+                this.addNotePlayback(key, noteFrequency(note, octave));
+                container.appendChild(key);
+            });
+        }
+        container.style.width = `${whiteCount * WW}px`;
+        container.style.height = `${WH}px`;
+    }
+    updatePianoLabels() {
+        const positionRoots = getPositionRootsForKey(this.currentKey);
+        const rootNote = positionRoots[this.currentPosition];
+        document.querySelectorAll('.piano-key').forEach(key => {
+            const note = key.dataset.note;
+            const octave = parseInt(key.dataset.octave);
+            const { interval, inScale } = getNoteInterval(note, rootNote, this.currentScale);
+            const octaveMatch = this.pianoOctaveFilter === null || octave === this.pianoOctaveFilter;
+            key.classList.remove('in-scale', 'scale-root', 'out-of-scale');
+            if (octaveMatch && interval === '1') {
+                key.classList.add('scale-root');
+            }
+            if (octaveMatch && inScale && this.currentScale !== 'chromatic') {
+                key.classList.add('in-scale');
+            }
+        });
+    }
     setupEventListeners() {
         const startBtn = document.getElementById('startBtn');
         if (startBtn) {
@@ -608,6 +703,16 @@ class HarmonicaUI {
                 this.saveSettings();
             });
         }
+        const pianoOctaveSelect = document.getElementById('pianoOctaveSelect');
+        if (pianoOctaveSelect) {
+            pianoOctaveSelect.value = this.pianoOctaveFilter === null ? 'all' : String(this.pianoOctaveFilter);
+            pianoOctaveSelect.addEventListener('change', () => {
+                const val = pianoOctaveSelect.value;
+                this.pianoOctaveFilter = val === 'all' ? null : parseInt(val);
+                this.updateNoteLabels();
+                this.saveSettings();
+            });
+        }
         // Apply initial color coding and position labels
         this.updatePositionLabels();
         this.updateNoteLabels();
@@ -673,6 +778,20 @@ class HarmonicaUI {
                 }
             }
         });
+        // Highlight the matching piano key
+        const pianoKey = document.getElementById(`piano-${note}`);
+        if (this.activePianoNoteId) {
+            const prev = document.getElementById(this.activePianoNoteId);
+            if (prev)
+                prev.classList.remove('active');
+        }
+        if (pianoKey) {
+            pianoKey.classList.add('active');
+            this.activePianoNoteId = pianoKey.id;
+        }
+        else {
+            this.activePianoNoteId = null;
+        }
     }
     onNoSound() {
         this.clearActiveNotes();
@@ -685,6 +804,12 @@ class HarmonicaUI {
             }
         });
         this.activeNotes.clear();
+        if (this.activePianoNoteId) {
+            const prev = document.getElementById(this.activePianoNoteId);
+            if (prev)
+                prev.classList.remove('active');
+            this.activePianoNoteId = null;
+        }
     }
     transposeHarmonica() {
         // Create transposed layout for the new key
@@ -750,32 +875,28 @@ class HarmonicaUI {
             const bendSuffix = harmonicaNote.bend ? '-bend' : '';
             const noteElement = document.getElementById(`note-${harmonicaNote.note}-${harmonicaNote.type}${bendSuffix}`);
             if (noteElement) {
-                // Find the text node (excluding the deviation-display child)
+                // Update text content first, preserving the deviation-display element
                 const displayText = this.showIntervals ? harmonicaNote.interval : getDisplayNoteName(harmonicaNote.note);
-                // Remove existing scale classes
-                noteElement.classList.remove('out-of-scale', 'in-scale', 'scale-root');
-                // Bold the root note in all scales
-                if (harmonicaNote.interval === '1') {
-                    noteElement.classList.add('scale-root');
-                }
-                // Apply scale highlighting (skip for chromatic)
-                if (harmonicaNote.interval && this.currentScale !== 'chromatic') {
-                    if (harmonicaNote.inScale) {
-                        noteElement.classList.add('in-scale');
-                    }
-                    else {
-                        noteElement.classList.add('out-of-scale');
-                    }
-                }
-                // Update only the text content, preserving the deviation-display element
                 const deviationElement = noteElement.querySelector('.deviation-display');
                 noteElement.textContent = displayText || '';
-                // Re-append the deviation element
                 if (deviationElement) {
                     noteElement.appendChild(deviationElement);
                 }
+                // Apply scale highlighting after content update
+                const positionRoots = getPositionRootsForKey(this.currentKey);
+                const rootNote = positionRoots[this.currentPosition];
+                const { interval, inScale } = getNoteInterval(harmonicaNote.note, rootNote, this.currentScale);
+                const octaveNum = parseInt(harmonicaNote.note.replace(/[^0-9]/g, ''));
+                const octaveMatch = this.pianoOctaveFilter === null || octaveNum === this.pianoOctaveFilter;
+                noteElement.classList.remove('scale-root');
+                if (interval === '1' && octaveMatch)
+                    noteElement.classList.add('scale-root');
+                const highlight = inScale && octaveMatch && this.currentScale !== 'chromatic';
+                noteElement.style.background = highlight ? 'var(--color-scale-bg)' : '';
+                noteElement.style.border = highlight ? '1px solid var(--color-scale-border)' : '';
             }
         });
+        this.updatePianoLabels();
     }
     updateStatus(message) {
         const status = document.getElementById('status');
@@ -783,16 +904,17 @@ class HarmonicaUI {
             status.textContent = message;
     }
     loadSettings() {
-        var _a, _b, _c, _d, _e;
+        var _a, _b, _c, _d, _e, _f;
         try {
             const savedSettings = localStorage.getItem('harmonicaSettings');
             if (savedSettings) {
                 const settings = JSON.parse(savedSettings);
                 this.showIntervals = (_a = settings.showIntervals) !== null && _a !== void 0 ? _a : false;
                 this.showOverblows = (_b = settings.showOverblows) !== null && _b !== void 0 ? _b : false;
-                this.currentKey = (_c = settings.currentKey) !== null && _c !== void 0 ? _c : 'C';
-                this.currentPosition = (_d = settings.currentPosition) !== null && _d !== void 0 ? _d : 1;
-                this.currentScale = (_e = settings.currentScale) !== null && _e !== void 0 ? _e : 'chromatic';
+                this.pianoOctaveFilter = (_c = settings.pianoOctaveFilter) !== null && _c !== void 0 ? _c : null;
+                this.currentKey = (_d = settings.currentKey) !== null && _d !== void 0 ? _d : 'C';
+                this.currentPosition = (_e = settings.currentPosition) !== null && _e !== void 0 ? _e : 1;
+                this.currentScale = (_f = settings.currentScale) !== null && _f !== void 0 ? _f : 'chromatic';
             }
         }
         catch (error) {
@@ -804,6 +926,7 @@ class HarmonicaUI {
             const settings = {
                 showIntervals: this.showIntervals,
                 showOverblows: this.showOverblows,
+                pianoOctaveFilter: this.pianoOctaveFilter,
                 currentKey: this.currentKey,
                 currentPosition: this.currentPosition,
                 currentScale: this.currentScale

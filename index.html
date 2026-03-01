@@ -6,6 +6,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Harmonica Pitch Detector</title>
     <style>
+        :root {
+            --color-bg: #ffffff;
+            --color-text: #333;
+            --color-text-muted: #888;
+            --color-text-subtle: #555;
+            --color-hole-bar: #666;
+            --color-bend-from: #f2f2f2;
+            --color-bend-to: #e0e0e0;
+            --color-bend-border: #ccc;
+            --color-piano-white-border: #999;
+            --color-piano-black: #222;
+            /* --color-active: #ffe033; */
+            --color-active: #ffc600;
+            /* --color-active-border: #e6c800; */
+            --color-active-border: blue;
+            /*--color-active-glow: rgba(255, 224, 51, 0.6);*/
+            --color-active-glow: rgba(255, 224, 51, 0.6);
+            /* --color-scale-bg: #fff3b0; */
+            --color-scale-bg: #ffc600;
+            /* --color-scale-border: #e6d280; */
+            --color-scale-border: transparent;
+            --color-deviation-off: #ff6b6b;
+            --color-pitch-info-bg: rgba(0, 0, 0, 0.05);
+            --color-deviation-bar: rgba(0, 0, 0, 0.1);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,14 +40,14 @@
 
         body {
             font-family: Verdana, Geneva, Tahoma, sans-serif;
-            background: #ffffff;
+            background: var(--color-bg);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             padding: 20px;
             min-width: 730px;
-            color: #333;
+            color: var(--color-text);
         }
 
         .container {
@@ -46,8 +72,8 @@
             padding: auto;
             /*: 15px 30px;*/
             font-size: 18px;
-            background: #555;
-            color: white;
+            background: var(--color-text-subtle);
+            color: var(--color-bg);
             border: none;
             border-radius: 8px;
             cursor: pointer;
@@ -55,18 +81,18 @@
         }
 
         #startBtn:hover {
-            background: #333;
+            background: var(--color-text);
         }
 
         #startBtn:disabled {
-            background: #cccccc;
+            background: var(--color-bend-border);
             cursor: not-allowed;
         }
 
         .pitch-info {
             text-align: center;
             margin-bottom: 30px;
-            background: rgba(0, 0, 0, 0.05);
+            background: var(--color-pitch-info-bg);
             padding: 20px;
             border-radius: 10px;
         }
@@ -79,7 +105,7 @@
 
         .frequency {
             font-size: 24px;
-            color: #888;
+            color: var(--color-text-muted);
         }
 
         .pitch-deviation {
@@ -89,7 +115,7 @@
         .deviation-bar {
             width: 100%;
             height: 30px;
-            background: rgba(0, 0, 0, 0.1);
+            background: var(--color-deviation-bar);
             border-radius: 15px;
             position: relative;
             overflow: hidden;
@@ -99,7 +125,7 @@
             position: absolute;
             width: 4px;
             height: 100%;
-            background: #ff6b6b;
+            background: var(--color-deviation-off);
             left: 50%;
             transform: translateX(-50%);
             transition: left 0.1s;
@@ -109,7 +135,7 @@
             position: absolute;
             width: 2px;
             height: 100%;
-            background: #333;
+            background: var(--color-text);
             left: 50%;
             transform: translateX(-50%);
         }
@@ -120,7 +146,7 @@
         }
 
         .harmonica {
-            background: white;
+            background: var(--color-bg);
             border-radius: 4px;
             padding: 20px 10px;
             display: inline-block;
@@ -140,7 +166,7 @@
             right: 0;
             top: 158px;
             height: 28px;
-            background: #666;
+            background: var(--color-hole-bar);
             z-index: 0;
         }
 
@@ -151,7 +177,7 @@
             right: 0;
             top: 110px;
             height: 124px;
-            border: 1px solid #333;
+            border: 1px solid var(--color-text);
             border-radius: 6px;
             pointer-events: none;
             z-index: 5;
@@ -174,7 +200,7 @@
             top: 111px;
             height: 124px;
             width: 1px;
-            background: #333;
+            background: var(--color-text);
             z-index: 3;
         }
 
@@ -207,12 +233,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: white;
+            background: var(--color-bg);
             border: none;
             border-radius: 0;
             font-weight: normal;
             font-size: 14px;
-            color: #333;
+            color: var(--color-text);
             transition: all 0.15s;
             position: relative;
             white-space: pre-line;
@@ -230,8 +256,8 @@
             width: 54px;
             height: 48px;
             font-size: 14px;
-            background: linear-gradient(145deg, #f2f2f2, #e0e0e0);
-            border: 1px solid #ccc;
+            background: linear-gradient(145deg, var(--color-bend-from), var(--color-bend-to));
+            border: 1px solid var(--color-bend-border);
             border-radius: 3px;
             margin: 2px 0;
         }
@@ -250,7 +276,7 @@
             transform: translate(-50%, -50%);
             width: 40px;
             height: 3px;
-            background: white;
+            background: var(--color-bg);
             border-radius: 2px;
             display: none;
             transition: top 0.1s;
@@ -266,32 +292,22 @@
         }
 
         .note.active {
-            background: #ffe033;
-            color: #333;
+            background: var(--color-active);
+            color: var(--color-text);
             transform: scale(1.15);
-            box-shadow: 0 0 15px rgba(255, 224, 51, 0.6);
-            border-color: #e6c800;
+            box-shadow: 0 0 15px var(--color-active-glow);
+            border-color: var(--color-active-border);
         }
 
         .note.blow.active,
         .note.draw.active {
-            background: #ffe033;
+            background: var(--color-active);
         }
 
         /* Scale note highlighting */
-        .note.in-scale {
-            background: #fff3b0 !important;
-            /*border-radius: 50%;*/
-            border: 1px solid #e6d280 !important;
-        }
-
         .note.scale-root {
             font-weight: bold !important;
         }
-
-        /* .note.out-of-scale {
-            opacity: 0.4 !important;
-        } */
 
         .hole-number {
             font-size: 10px;
@@ -311,14 +327,14 @@
 
         .label {
             font-size: 11px;
-            color: #555;
+            color: var(--color-text-subtle);
         }
 
         .status {
             text-align: center;
             margin-top: 10px;
             font-size: 14px;
-            color: #888;
+            color: var(--color-text-muted);
         }
 
         .header {
@@ -339,8 +355,84 @@
 
         .header svg {
             width: 120px;
-            color: #333;
-            fill: #333;
+            color: var(--color-text);
+            fill: var(--color-text);
+        }
+
+        /* Piano keyboard */
+        .piano-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-top: 24px;
+            overflow-x: auto;
+        }
+
+        .piano-keyboard {
+            position: relative;
+            height: 120px;
+            flex-shrink: 0;
+        }
+
+        .piano-key {
+            position: absolute;
+            top: 0;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 5px;
+            box-sizing: border-box;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .piano-key.white {
+            width: 29px;
+            height: 120px;
+            background: var(--color-bg);
+            border: 1px solid var(--color-piano-white-border);
+            border-radius: 0 0 3px 3px;
+            z-index: 1;
+            font-size: 10px;
+            color: var(--color-text);
+        }
+
+        .piano-key.black {
+            width: 18px;
+            height: 74px;
+            background: var(--color-piano-black);
+            border: 1px solid black;
+            border-radius: 0 0 3px 3px;
+            z-index: 2;
+            font-size: 7px;
+            color: var(--color-bg);
+            white-space: pre-line;
+            text-align: center;
+            padding-bottom: 3px;
+        }
+
+        .piano-key span {
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 1px 3px;
+        }
+
+        .piano-key.in-scale span {
+            background: var(--color-scale-bg);
+            border-color: var(--color-scale-border);
+        }
+
+        .piano-key.black.in-scale span {
+            color: var(--color-text);
+        }
+
+        .piano-key.scale-root span {
+            font-weight: bold;
+        }
+
+
+        .piano-key.active {
+            background: var(--color-active) !important;
+            border-color: var(--color-active-border) !important;
         }
     </style>
 </head>
@@ -494,7 +586,9 @@
                     <div class="holes-container" id="harmonicaHoles"></div>
                 </div>
             </div>
-
+            <div class="piano-wrapper">
+                <div class="piano-keyboard" id="pianoKeyboard"></div>
+            </div>
         </div>
 
 
@@ -551,6 +645,16 @@
                 </select>
             </label>
             <label style="margin-left: 20px; font-size: 16px;">
+                Piano Octave:
+                <select id="pianoOctaveSelect"
+                    style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
+                    <option value="all">All Octaves</option>
+                    <option value="4">First Octave</option>
+                    <option value="5">Second Octave</option>
+                    <option value="6">Third Octave</option>
+                </select>
+            </label>
+            <label style="margin-left: 20px; font-size: 16px;">
                 Scale:
                 <select id="scaleSelect"
                     style="margin-left: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc;">
@@ -576,7 +680,7 @@
     </div>
 
 
-    <script type="module" src="harmonica.js"></script>
+    <script type="module" src="harmonica.js?v=4"></script>
 </body>
 
 </html>
